@@ -33,7 +33,7 @@
 
 ## 🧱 소프트웨어 아키텍처 구성
 - **프론트엔드**: Flutter
-- **백엔드**: Kotlin spring
+- **백엔드**: Kotlin spring boot
 - **DB**: 개발 초기는 NoSQL 사용, 추후 서비스 배포 시 관계형 DB로 전환
 - **CI/CD**: GitHub Actions (자동 배포), Vercel, Cloud
 - **디자인**: Figma (프로토타입 및 사용자 흐름 설계)
