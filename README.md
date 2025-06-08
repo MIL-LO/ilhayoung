@@ -17,7 +17,7 @@
 
 |    👤 **이름**     | 🎯 **역할** | 💬 **한마디**               |
 |:----------------:|:----------:|:-------------------------|
-|     **이기연**      | `🔧 Infra` | *"오늘 뭐 먹지? 알고니찜 먹어야지 ~"* |
+|     **이기연**      | `🔧 DevOps` | *"오늘 뭐 먹지? 알고니찜 먹어야지 ~"* |
 |     **박경덕**      | `💻 Backend` | *"어제 뭐 먹었지? 냉삼 먹었구나 ~"*  |
 |     **정가연**      | `🎨 Frontend / Design` | *"내일 뭐 먹지? 초밥 먹어야지 ~"*   |
 
@@ -46,13 +46,15 @@
 *개발 간소화를 위해 무료 플랫폼 기반으로 설계*  
 *추후 자영업자 대상 테스트 시, 반응형 웹 우선 대응*
 
+<img alt="system_architecture" src="img/jeju_gap_year_system_architecture.png"  width="500">
+
 </div>
 
 ### 🧱 **소프트웨어 아키텍처 구성**
 - **프론트엔드**: `Flutter`
 - **백엔드**: `Kotlin Spring Boot`
 - **DB**: 개발 초기는 `NoSQL` 사용, 추후 서비스 배포 시 관계형 DB로 전환
-- **CI/CD**: `GitHub Actions` (자동 배포), `Vercel`, `Cloud`
+- **CI/CD**: `GitHub Actions` (자동 배포), `Vercel`, `Cloud(Oracle/AWS)`
 - **디자인**: `Figma` (프로토타입 및 사용자 흐름 설계)
 
 ---
