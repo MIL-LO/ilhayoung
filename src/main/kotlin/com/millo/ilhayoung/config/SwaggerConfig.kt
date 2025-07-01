@@ -24,8 +24,8 @@ class SwaggerConfig(val env: Environment) {
         return OpenAPI()
             .info(
                 Info()
-                    .title("일하영 API")
-                    .description("일하영 서비스의 API 문서입니다.")
+                    .title("Ollim API")
+                    .description("감정 다이어리 서비스 올림의 API 문서입니다.")
                     .version("v1.0.0")
             )
             .servers(servers)

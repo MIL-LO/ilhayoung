@@ -14,12 +14,7 @@ spring:
       password: ${REDIS_PASSWORD}
       database: ${REDIS_DATABASE}
     mongodb:
-      host: ${MONGO_HOST}
-      port: ${MONGO_PORT}
-      username: ${MONGO_USERNAME}
-      password: ${MONGO_PASSWORD}
-      database: ${MONGO_DATABASE}
-      authentication-database: ${AUTHENTICATION_DATABASE}
+      uri: ${MONGO_URI}
 
   security:
     oauth2:
