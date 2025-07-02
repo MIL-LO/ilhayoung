@@ -19,12 +19,7 @@ jobs:
       - name: Copy project files to Oracle server (excluding .env.docker)
         uses: Burnett01/rsync-deployments@7.0.2
         with:
-          switches: -avzr --delete \
-            --exclude=".git/" \
-            --exclude=".github/" \
-            --exclude="build/" \
-            --exclude=".env.docker" \
-            --exclude=".env.local"
+          switches: "-avzr --delete --exclude=.git/ --exclude=.github/ --exclude=build/ --exclude=.env.docker --exclude=.env.local"
           path: .
           remote_path: /home/ubuntu/ilhayoung
           remote_host: ${{ secrets.ORACLE_HOST }}
