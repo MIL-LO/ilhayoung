@@ -15,23 +15,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Oracle 서버에 코드 전송 (.env.docker 제외)
-      - name: Copy project files to Oracle server (excluding .env.docker)
-        uses: appleboy/rsync-action@v0.1.7
+      # Oracle 서버에 코드 전송 (.env.docker 등 제외)
+      - name: Copy project files to Oracle server (excluding secrets and builds)
+        uses: Burnett01/rsync-deployments@v1.0.2
         with:
-          host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USER }}
-          key: ${{ secrets.ORACLE_SSH_KEY }}
-          source: "."
-          target: "/home/ubuntu/ilhayoung"
-          rm: true
-          strip_components: 1
-          exclude: |
-            .git/
-            .github/
-            build/
-            .env.docker
-            .env.local
+          switches: -avzr --delete --exclude=".git/" --exclude=".github/" --exclude="build/" --exclude=".env.docker" --exclude=".env.local"
+          path: .
+          remote_path: /home/ubuntu/ilhayoung
+          remote_host: ${{ secrets.ORACLE_HOST }}
+          remote_user: ${{ secrets.ORACLE_USER }}
+          remote_key: ${{ secrets.ORACLE_SSH_KEY }}
 
       # Oracle 서버에서 .env.docker 생성 (GitHub Secrets에서 복호화)
       - name: Create .env.docker on Oracle server
@@ -41,8 +34,9 @@ jobs:
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
+            set -e
             cd /home/ubuntu/ilhayoung
-            echo "${{ secrets.ENV_DOCKER }}" | base64 --decode > .env.docker
+            echo "${{ secrets.ENV_DOCKER }}" | base64 --decode > .env.docker || { echo "❌ Failed to decode .env.docker"; exit 1; }
             echo ".env.docker created"
 
       # Docker Compose로 서비스 재배포
@@ -53,7 +47,10 @@ jobs:
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
+            set -e
             cd /home/ubuntu/ilhayoung
-            docker compose down
-            docker compose --env-file .env.docker up -d --build
+            echo "Stopping current containers..."
+            sudo docker compose down || true
+            echo "Starting containers with updated code..."
+            sudo docker compose --env-file .env.docker up -d --build
             echo "Deployment complete!"
