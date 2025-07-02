@@ -17,7 +17,7 @@ jobs:
 
       # Oracle 서버에 코드 전송 (.env.docker 등 제외)
       - name: Copy project files to Oracle server (excluding .env.docker)
-        uses: Burnett01/rsync-deployments@v1.0.0
+        uses: Burnett01/rsync-deployments@7.0.2
         with:
           switches: -avzr --delete \
             --exclude=".git/" \
