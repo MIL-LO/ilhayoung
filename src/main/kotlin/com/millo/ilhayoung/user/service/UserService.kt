@@ -127,7 +127,7 @@ class UserService(
                 
                 StaffUserResponse(
                     userId = user.id!!,
-                    userType = user.userType!!.code,
+                    userType = user.userType?.code ?: "UNKNOWN",
                     name = user.name!!,
                     birthDate = user.birthDate.toString(),
                     phone = user.phone!!,
@@ -141,7 +141,7 @@ class UserService(
                 
                 ManagerUserResponse(
                     userId = user.id!!,
-                    userType = user.userType!!.code,
+                    userType = user.userType?.code ?: "UNKNOWN",
                     name = user.name!!,
                     birthDate = user.birthDate.toString(),
                     phone = user.phone!!,
