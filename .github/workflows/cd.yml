@@ -16,10 +16,15 @@ jobs:
         uses: actions/checkout@v4
 
       # Oracle 서버에 코드 전송 (.env.docker 등 제외)
-      - name: Copy project files to Oracle server (excluding secrets and builds)
-        uses: Burnett01/rsync-deployments@v1.0.2
+      - name: Copy project files to Oracle server (excluding .env.docker)
+        uses: Burnett01/rsync-deployments@v1.0.0
         with:
-          switches: -avzr --delete --exclude=".git/" --exclude=".github/" --exclude="build/" --exclude=".env.docker" --exclude=".env.local"
+          switches: -avzr --delete \
+            --exclude=".git/" \
+            --exclude=".github/" \
+            --exclude="build/" \
+            --exclude=".env.docker" \
+            --exclude=".env.local"
           path: .
           remote_path: /home/ubuntu/ilhayoung
           remote_host: ${{ secrets.ORACLE_HOST }}
@@ -36,7 +41,7 @@ jobs:
           script: |
             set -e
             cd /home/ubuntu/ilhayoung
-            echo "${{ secrets.ENV_DOCKER }}" | base64 --decode > .env.docker || { echo "❌ Failed to decode .env.docker"; exit 1; }
+            echo "${{ secrets.ENV_DOCKER }}" | base64 --decode > .env.docker || { echo "Failed to decode .env.docker"; exit 1; }
             echo ".env.docker created"
 
       # Docker Compose로 서비스 재배포
@@ -53,4 +58,4 @@ jobs:
             sudo docker compose down || true
             echo "Starting containers with updated code..."
             sudo docker compose --env-file .env.docker up -d --build
-            echo "Deployment complete!"
+            echo "Deployment complete"
