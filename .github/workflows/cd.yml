@@ -17,7 +17,7 @@ jobs:
 
       # Oracle 서버에 코드 전송 (.env.docker 제외)
       - name: Copy project files to Oracle server (excluding .env.docker)
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/rsync-action@v0.1.7
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
