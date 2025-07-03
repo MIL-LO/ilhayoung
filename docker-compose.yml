@@ -9,7 +9,6 @@ services:
       - "5000:5000"
     depends_on:
       - redis
-      - mongo
     env_file:
       - .env.docker
     networks:
@@ -26,20 +25,6 @@ services:
     networks:
       - backend
 
-  mongo:
-    container_name: mongo
-    image: mongo:6.0
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-    networks:
-      - backend
 
 networks:
   backend:
@@ -47,4 +32,3 @@ networks:
 
 volumes:
   redis-data:
-  mongo-data:
