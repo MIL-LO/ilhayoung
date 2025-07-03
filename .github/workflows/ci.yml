@@ -1,0 +1,78 @@
+name: CI with Gradle
+
+# main에 PR이 들어오거나 dev에 Push 동작 시, 실행
+on:
+  pull_request:
+    branches: [ "main", "dev" ]
+  push:
+    branches: [ "dev" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # GitHub 리포지토리 체크아웃
+      - uses: actions/checkout@v4
+
+      # JDK 17 (Amazon Corretto) 설치 및 Gradle 캐시 설정
+      - name: Set up JDK 17 with Corretto
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          cache: 'gradle'
+
+      # Gradle wrapper 설정
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # gradlew 실행 권한 부여
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # CI 실행을 위한 .env.local 생성 (base64 인코딩된 시크릿 복호화)
+      - name: Create .env.local file for CI
+        run: |
+          echo "${{ secrets.ENV_LOCAL }}" | base64 --decode > .env.local
+          echo ".env.local created and patched"
+
+      # Docker Compose 환경용 .env.docker 파일 생성
+      - name: Create .env.docker file for docker-compose
+        run: |
+          echo "${{ secrets.ENV_DOCKER }}" | base64 --decode > .env.docker
+          echo ".env.docker created"
+
+      # Docker Compose로 전체 서비스 시작
+      - name: Start Docker Compose Services
+        run: |
+          docker compose --env-file .env.docker up -d
+          echo "Waiting for containers to be ready..."
+
+      # Gradle 빌드 및 테스트 실행
+      - name: Build and Test with Gradle
+        run: ./gradlew clean build
+
+  dependency-submission:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # 의존성 제출용 코드 체크아웃
+      - uses: actions/checkout@v4
+
+      # 의존성 그래프 생성을 위한 Java 설정
+      - name: Setup Java 17 with Corretto for dependency submission
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          cache: 'gradle'
+
+      # 의존성 그래프 생성 및 GitHub에 제출
+      - name: Generate and submit dependency graph
+        uses: gradle/actions/dependency-submission@417ae3ccd767c252f5661f1ace9f835f9654f2b5
