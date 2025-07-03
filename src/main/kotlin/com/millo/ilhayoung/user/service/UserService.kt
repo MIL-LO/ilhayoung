@@ -1,5 +1,8 @@
 package com.millo.ilhayoung.user.service
 
+import com.millo.ilhayoung.auth.domain.RefreshToken
+import com.millo.ilhayoung.auth.jwt.JwtTokenProvider
+import com.millo.ilhayoung.auth.repository.RefreshTokenRepository
 import com.millo.ilhayoung.common.exception.ErrorCode
 import com.millo.ilhayoung.user.domain.*
 import com.millo.ilhayoung.user.dto.*
@@ -9,6 +12,7 @@ import com.millo.ilhayoung.user.repository.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * User 관련 비즈니스 로직을 담당하는 Service 클래스
@@ -19,7 +23,9 @@ import java.time.LocalDate
 class UserService(
     private val userRepository: UserRepository,
     private val staffRepository: StaffRepository,
-    private val managerRepository: ManagerRepository
+    private val managerRepository: ManagerRepository,
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val refreshTokenRepository: RefreshTokenRepository
 ) {
     
     /**
@@ -27,11 +33,14 @@ class UserService(
      * 
      * @param userId 사용자 ID
      * @param request STAFF 회원가입 요청 정보
+     * @return 새로운 JWT 토큰이 포함된 회원가입 완료 응답
      * @throws BusinessException 이미 회원가입된 경우, 전화번호 중복 등
      */
-    fun signupStaff(userId: String, request: StaffSignupRequest) {
+    fun signupStaff(userId: String, request: StaffSignupRequest): SignupCompleteResponse {
         val user = userRepository.findById(userId)
             .orElseThrow { RuntimeException(ErrorCode.USER_NOT_FOUND.message) }
+        
+        println("🔥 signupStaff - 기존 사용자: email=${user.email}, userType=${user.userType}, needAdditionalInfo=${user.needAdditionalInfo}")
         
         // 이미 회원가입이 완료된 경우
         if (!user.needAdditionalInfo) {
@@ -43,15 +52,29 @@ class UserService(
             throw RuntimeException(ErrorCode.PHONE_ALREADY_EXISTS.message)
         }
         
-        // User 정보 업데이트
+        // User 정보 업데이트 (ID 유지하면서)
+        // OAuth에서 받은 이름 사용
+        val finalName = user.oauthName ?: throw RuntimeException("이름 정보가 없습니다. OAuth 인증 시 이름을 제공받지 못했습니다.")
+        
         val updatedUser = user.copy(
-            name = request.name,
+            name = finalName,
             birthDate = LocalDate.parse(request.birthDate),
             phone = request.phone,
             userType = UserType.STAFF,
             needAdditionalInfo = false
-        )
-        userRepository.save(updatedUser)
+        ).apply {
+            // BaseDocument의 필드들을 명시적으로 복사
+            this.id = user.id
+            this.createdAt = user.createdAt
+            this.updatedAt = user.updatedAt
+            this.isDeleted = user.isDeleted
+            this.deletedAt = user.deletedAt
+        }
+        
+        println("🔥 signupStaff - 업데이트할 사용자: email=${updatedUser.email}, userType=${updatedUser.userType}, needAdditionalInfo=${updatedUser.needAdditionalInfo}")
+        
+        val savedUser = userRepository.save(updatedUser)
+        println("🔥 signupStaff - 저장된 사용자: email=${savedUser.email}, userType=${savedUser.userType}, needAdditionalInfo=${savedUser.needAdditionalInfo}")
         
         // Staff 정보 생성
         val staff = Staff(
@@ -60,6 +83,21 @@ class UserService(
             experience = request.experience
         )
         staffRepository.save(staff)
+        
+        // 새로운 JWT 토큰 발급 (userType이 업데이트된 상태로)
+        val newAccessToken = jwtTokenProvider.createAccessToken(savedUser.id!!, savedUser.userType, savedUser.email)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(savedUser.id!!)
+        
+        // 기존 Refresh Token 삭제 후 새 토큰 저장
+        refreshTokenRepository.deleteByUserId(savedUser.id!!)
+        saveRefreshToken(savedUser.id!!, newRefreshToken)
+        
+        return SignupCompleteResponse(
+            message = "STAFF 회원가입이 완료되었습니다.",
+            accessToken = newAccessToken,
+            refreshToken = newRefreshToken,
+            userType = savedUser.userType?.code ?: "UNKNOWN"
+        )
     }
     
     /**
@@ -67,9 +105,10 @@ class UserService(
      * 
      * @param userId 사용자 ID
      * @param request MANAGER 회원가입 요청 정보
+     * @return 새로운 JWT 토큰이 포함된 회원가입 완료 응답
      * @throws BusinessException 이미 회원가입된 경우, 전화번호 중복, 사업자등록번호 중복 등
      */
-    fun signupManager(userId: String, request: ManagerSignupRequest) {
+    fun signupManager(userId: String, request: ManagerSignupRequest): SignupCompleteResponse {
         val user = userRepository.findById(userId)
             .orElseThrow { RuntimeException(ErrorCode.USER_NOT_FOUND.message) }
         
@@ -88,15 +127,25 @@ class UserService(
             throw RuntimeException("이미 등록된 사업자등록번호입니다.")
         }
         
-        // User 정보 업데이트
+        // User 정보 업데이트 (ID 유지하면서)
+        // OAuth에서 받은 이름 사용
+        val finalName = user.oauthName ?: throw RuntimeException("이름 정보가 없습니다. OAuth 인증 시 이름을 제공받지 못했습니다.")
+        
         val updatedUser = user.copy(
-            name = request.name,
+            name = finalName,
             birthDate = LocalDate.parse(request.birthDate),
             phone = request.phone,
             userType = UserType.MANAGER,
             needAdditionalInfo = false
-        )
-        userRepository.save(updatedUser)
+        ).apply {
+            // BaseDocument의 필드들을 명시적으로 복사
+            this.id = user.id
+            this.createdAt = user.createdAt
+            this.updatedAt = user.updatedAt
+            this.isDeleted = user.isDeleted
+            this.deletedAt = user.deletedAt
+        }
+        val savedUser = userRepository.save(updatedUser)
         
         // Manager 정보 생성
         val manager = Manager(
@@ -106,6 +155,21 @@ class UserService(
             businessType = request.businessType
         )
         managerRepository.save(manager)
+        
+        // 새로운 JWT 토큰 발급 (userType이 업데이트된 상태로)
+        val newAccessToken = jwtTokenProvider.createAccessToken(savedUser.id!!, savedUser.userType, savedUser.email)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(savedUser.id!!)
+        
+        // 기존 Refresh Token 삭제 후 새 토큰 저장
+        refreshTokenRepository.deleteByUserId(savedUser.id!!)
+        saveRefreshToken(savedUser.id!!, newRefreshToken)
+        
+        return SignupCompleteResponse(
+            message = "MANAGER 회원가입이 완료되었습니다.",
+            accessToken = newAccessToken,
+            refreshToken = newRefreshToken,
+            userType = savedUser.userType?.code ?: "UNKNOWN"
+        )
     }
     
     /**
@@ -119,6 +183,8 @@ class UserService(
     fun getCurrentUserInfo(userId: String): Any {
         val user = userRepository.findById(userId)
             .orElseThrow { RuntimeException(ErrorCode.USER_NOT_FOUND.message) }
+        
+        println("🔥 getCurrentUserInfo - 조회된 사용자: email=${user.email}, userType=${user.userType}, needAdditionalInfo=${user.needAdditionalInfo}")
         
         return when (user.userType) {
             UserType.STAFF -> {
@@ -177,7 +243,14 @@ class UserService(
             if (newPhone != user.phone && userRepository.existsByPhone(newPhone)) {
                 throw RuntimeException(ErrorCode.PHONE_ALREADY_EXISTS.message)
             }
-            val updatedUser = user.copy(phone = newPhone)
+            val updatedUser = user.copy(phone = newPhone).apply {
+                // BaseDocument의 필드들을 명시적으로 복사
+                this.id = user.id
+                this.createdAt = user.createdAt
+                this.updatedAt = user.updatedAt
+                this.isDeleted = user.isDeleted
+                this.deletedAt = user.deletedAt
+            }
             userRepository.save(updatedUser)
         }
         
@@ -212,7 +285,14 @@ class UserService(
             if (newPhone != user.phone && userRepository.existsByPhone(newPhone)) {
                 throw RuntimeException(ErrorCode.PHONE_ALREADY_EXISTS.message)
             }
-            val updatedUser = user.copy(phone = newPhone)
+            val updatedUser = user.copy(phone = newPhone).apply {
+                // BaseDocument의 필드들을 명시적으로 복사
+                this.id = user.id
+                this.createdAt = user.createdAt
+                this.updatedAt = user.updatedAt
+                this.isDeleted = user.isDeleted
+                this.deletedAt = user.deletedAt
+            }
             userRepository.save(updatedUser)
         }
         
@@ -251,5 +331,31 @@ class UserService(
         // User 삭제 (소프트 삭제)
         user.softDelete()
         userRepository.save(user)
+    }
+    
+    /**
+     * Refresh Token을 Redis에 저장하는 메서드
+     * Redis TTL로 자동 만료되므로 별도 만료 처리 불필요
+     * 
+     * @param userId 사용자 ID
+     * @param refreshTokenValue 리프레시 토큰 값
+     */
+    private fun saveRefreshToken(userId: String, refreshTokenValue: String) {
+        // 기존 리프레시 토큰들 삭제 (단일 세션 정책)
+        refreshTokenRepository.deleteByUserId(userId)
+        
+        // 새로운 리프레시 토큰 저장
+        val expiresAt = jwtTokenProvider.getExpiration(refreshTokenValue)
+            .toInstant()
+            .atZone(ZoneId.systemDefault())
+            .toLocalDateTime()
+        
+        val refreshToken = RefreshToken.create(
+            token = refreshTokenValue,
+            userId = userId,
+            expiresAt = expiresAt
+        )
+        
+        refreshTokenRepository.save(refreshToken)
     }
 } 

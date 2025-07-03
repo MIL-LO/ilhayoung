@@ -39,9 +39,9 @@ class UserController(
     fun signupStaff(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Valid @RequestBody request: StaffSignupRequest
-    ): ApiResponse<MessageResponse> {
-        userService.signupStaff(userPrincipal.userId, request)
-        return ApiResponse.success(MessageResponse.staffSignupCompleted())
+    ): ApiResponse<SignupCompleteResponse> {
+        val response = userService.signupStaff(userPrincipal.userId, request)
+        return ApiResponse.success(response)
     }
     
     /**
@@ -60,9 +60,9 @@ class UserController(
     fun signupManager(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Valid @RequestBody request: ManagerSignupRequest
-    ): ApiResponse<MessageResponse> {
-        userService.signupManager(userPrincipal.userId, request)
-        return ApiResponse.success(MessageResponse.managerSignupCompleted())
+    ): ApiResponse<SignupCompleteResponse> {
+        val response = userService.signupManager(userPrincipal.userId, request)
+        return ApiResponse.success(response)
     }
     
     /**

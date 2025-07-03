@@ -58,6 +58,13 @@ data class User(
     val providerId: String,
     
     /**
+     * OAuth2에서 받은 사용자 이름
+     * Google: name, Kakao: nickname, Naver: name
+     * 회원가입 시 기본값으로 사용됨
+     */
+    val oauthName: String? = null,
+    
+    /**
      * 프로필 이미지 URL
      * OAuth2를 통해 받아온 프로필 이미지 또는 기본 이미지
      */
@@ -130,5 +137,34 @@ data class User(
      */
     fun updateLastLogin() {
         lastLoginAt = LocalDate.now()
+    }
+    
+    companion object {
+        
+        /**
+         * OAuth2 정보로부터 새로운 User 인스턴스를 생성하는 팩토리 메서드
+         * 
+         * @param email 사용자 이메일
+         * @param oauthId OAuth2 제공자의 사용자 ID
+         * @param oauthProvider OAuth2 제공자 이름 (google, kakao, naver)
+         * @param oauthName OAuth2에서 받은 사용자 이름 (Google: name, Kakao: nickname)
+         * @return 새로운 User 인스턴스
+         */
+        fun createFromOAuth(
+            email: String,
+            oauthId: String,
+            oauthProvider: String,
+            oauthName: String? = null
+        ): User {
+            return User(
+                email = email,
+                provider = oauthProvider,
+                providerId = oauthId,
+                oauthName = oauthName,
+                needAdditionalInfo = true,
+                isActive = true,
+                lastLoginAt = LocalDate.now()
+            )
+        }
     }
 } 

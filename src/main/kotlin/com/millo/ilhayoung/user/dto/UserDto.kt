@@ -10,12 +10,7 @@ import jakarta.validation.constraints.Pattern
 @Schema(description = "STAFF 회원가입 요청")
 data class StaffSignupRequest(
     
-    /**
-     * 이름
-     */
-    @field:NotBlank(message = "이름은 필수입니다.")
-    @Schema(description = "이름", example = "홍길동")
-    val name: String,
+
     
     /**
      * 생년월일 (YYYY-MM-DD)
@@ -54,12 +49,7 @@ data class StaffSignupRequest(
 @Schema(description = "MANAGER 회원가입 요청")
 data class ManagerSignupRequest(
     
-    /**
-     * 이름
-     */
-    @field:NotBlank(message = "이름은 필수입니다.")
-    @Schema(description = "이름", example = "이사장")
-    val name: String,
+
     
     /**
      * 생년월일 (YYYY-MM-DD)
@@ -254,4 +244,35 @@ data class ManagerUpdateRequest(
      */
     @Schema(description = "업종", example = "카페")
     val businessType: String?
+)
+
+/**
+ * 회원가입 완료 응답
+ */
+@Schema(description = "회원가입 완료 응답")
+data class SignupCompleteResponse(
+    
+    /**
+     * 완료 메시지
+     */
+    @Schema(description = "완료 메시지", example = "STAFF 회원가입이 완료되었습니다.")
+    val message: String,
+    
+    /**
+     * 새로운 Access Token (userType 포함)
+     */
+    @Schema(description = "새로운 Access Token", example = "eyJhbGciOiJIUzI1NiJ9...")
+    val accessToken: String,
+    
+    /**
+     * 새로운 Refresh Token
+     */
+    @Schema(description = "새로운 Refresh Token", example = "eyJhbGciOiJIUzI1NiJ9...")
+    val refreshToken: String,
+    
+    /**
+     * 사용자 타입
+     */
+    @Schema(description = "사용자 타입", example = "STAFF")
+    val userType: String
 ) 
