@@ -2,6 +2,10 @@ package com.millo.ilhayoung.config
 
 import com.millo.ilhayoung.auth.jwt.JwtAuthenticationFilter
 import com.millo.ilhayoung.auth.jwt.JwtTokenProvider
+import com.millo.ilhayoung.auth.oauth2.CustomOAuth2UserService
+import com.millo.ilhayoung.auth.oauth2.OAuth2AuthenticationFailureHandler
+import com.millo.ilhayoung.auth.oauth2.OAuth2AuthenticationSuccessHandler
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -14,7 +18,7 @@ import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 /**
- * Spring Security 설정을 담당하는 클래스
+ * Spring Security 설정을 담당하는 클래스 (모바일 최적화)
  * JWT 인증, CORS, 권한 관리 등을 설정
  */
 @Configuration
@@ -23,20 +27,23 @@ class SecurityConfig(
     private val jwtTokenProvider: JwtTokenProvider
 ) {
 
+    @Value("\${cors.allowed-origins}")
+    private lateinit var allowedOrigins: String
+
     /**
-     * Spring Security FilterChain 설정
-     * JWT 기반 인증을 사용하며 세션은 사용하지 않음
+     * Spring Security FilterChain 설정 (모바일 앱용)
+     * JWT 기반 Stateless 인증과 OAuth2 Login을 함께 사용
      */
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         return http
-            // CSRF 비활성화 (JWT 사용으로 불필요)
+            // CSRF 비활성화 (모바일 앱에서 불필요)
             .csrf { it.disable() }
             
             // CORS 설정 적용
             .cors { it.configurationSource(corsConfigurationSource()) }
             
-            // 세션 사용 안함 (JWT 사용)
+            // 세션 정책: Stateless (모바일 앱용)
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             
             // HTTP 요청에 대한 권한 설정
@@ -44,27 +51,33 @@ class SecurityConfig(
                 authz
                     // 인증 없이 접근 가능한 엔드포인트
                     .requestMatchers(
-                        "/api/v1/oauth/**",           // OAuth 로그인
+                        "/oauth2/**",                 // OAuth2 엔드포인트
+                        "/login/oauth2/**",           // OAuth2 Login 엔드포인트  
                         "/api/v1/auth/refresh",       // 토큰 재발급
-                        "/api/v1/external/**",        // 외부 API (사업자등록번호 조회 등)
                         
-                        // Swagger 관련
+                        // API 문서 (개발용)
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
                         "/swagger-resources/**",
                         "/webjars/**",
                         
-                        // 기타
+                        // 헬스체크
                         "/health",
                         "/actuator/**"
                     ).permitAll()
                     
-                    // STAFF 전용 엔드포인트
+                    // 회원가입 API (OAuth2 인증 후 접근 가능)
+                    .requestMatchers(
+                        "/api/v1/users/staff/signup",
+                        "/api/v1/users/manager/signup"
+                    ).authenticated()
+                    
+                    // STAFF 전용 API
                     .requestMatchers(
                         "/api/v1/users/staff/**"
                     ).hasRole("STAFF")
                     
-                    // MANAGER 전용 엔드포인트
+                    // MANAGER 전용 API
                     .requestMatchers(
                         "/api/v1/users/manager/**",
                         "/api/v1/recruits/**",
@@ -73,10 +86,10 @@ class SecurityConfig(
                         "/api/v1/salaries/pay/**"
                     ).hasRole("MANAGER")
                     
-                    // 인증된 사용자만 접근 가능한 엔드포인트
+                    // 인증된 사용자 API
                     .requestMatchers(
                         "/api/v1/users/me",
-                        "/api/v1/auth/logout",
+                        "/api/v1/auth/**",
                         "/api/v1/attendances/**",
                         "/api/v1/salaries/**",
                         "/api/v1/trust-scores/**"
@@ -84,6 +97,16 @@ class SecurityConfig(
                     
                     // 나머지 모든 요청은 인증 필요
                     .anyRequest().authenticated()
+            }
+            
+            // OAuth2 Login 설정 (모바일 앱용)
+            .oauth2Login { oauth2 ->
+                oauth2
+                    .userInfoEndpoint { userInfo ->
+                        userInfo.userService(customOAuth2UserService())
+                    }
+                    .successHandler(oAuth2AuthenticationSuccessHandler())
+                    .failureHandler(oAuth2AuthenticationFailureHandler())
             }
             
             // JWT 필터 추가
@@ -96,32 +119,56 @@ class SecurityConfig(
     }
 
     /**
-     * CORS 설정
+     * CORS 설정 (모바일 앱 최적화)
      */
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            // 허용할 Origin (프론트엔드 도메인)
-            allowedOriginPatterns = listOf("*")
+            // 모바일 앱을 위한 Origin 설정 (테스트용 임시 고정값)
+            allowedOriginPatterns = listOf("*", "http://localhost:*", "https://*.vercel.app")
             
-            // 허용할 HTTP 메서드
+            // 모바일 앱에서 사용하는 HTTP 메서드
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             
-            // 허용할 헤더
+            // 모바일 앱에서 사용하는 헤더
             allowedHeaders = listOf("*")
             
             // 인증 정보 포함 허용
             allowCredentials = true
             
-            // Preflight 요청 캐시 시간 (초)
+            // Preflight 요청 캐시 시간
             maxAge = 3600L
             
-            // 응답 헤더에 노출할 헤더
+            // 모바일 앱에 노출할 헤더
             exposedHeaders = listOf("Authorization", "Content-Type")
         }
 
         return UrlBasedCorsConfigurationSource().apply {
             registerCorsConfiguration("/**", configuration)
         }
+    }
+
+    /**
+     * 커스텀 OAuth2 사용자 서비스
+     */
+    @Bean
+    fun customOAuth2UserService(): CustomOAuth2UserService {
+        return CustomOAuth2UserService()
+    }
+
+    /**
+     * OAuth2 로그인 성공 핸들러
+     */
+    @Bean
+    fun oAuth2AuthenticationSuccessHandler(): OAuth2AuthenticationSuccessHandler {
+        return OAuth2AuthenticationSuccessHandler(jwtTokenProvider)
+    }
+
+    /**
+     * OAuth2 로그인 실패 핸들러
+     */
+    @Bean
+    fun oAuth2AuthenticationFailureHandler(): OAuth2AuthenticationFailureHandler {
+        return OAuth2AuthenticationFailureHandler()
     }
 } 
