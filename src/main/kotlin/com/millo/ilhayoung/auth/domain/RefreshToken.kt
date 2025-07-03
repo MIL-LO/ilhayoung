@@ -1,16 +1,22 @@
 package com.millo.ilhayoung.auth.domain
 
-import com.millo.ilhayoung.common.domain.BaseDocument
-import org.springframework.data.mongodb.core.index.Indexed
-import org.springframework.data.mongodb.core.mapping.Document
+import org.springframework.data.annotation.Id
+import org.springframework.data.redis.core.RedisHash
+import org.springframework.data.redis.core.index.Indexed
 import java.time.LocalDateTime
 
 /**
  * Refresh Token 정보를 저장하는 도메인 클래스
- * 사용자의 Refresh Token을 관리
+ * Redis에서 사용자의 Refresh Token을 관리
  */
-@Document(collection = "refresh_tokens")
+@RedisHash(value = "refresh_token", timeToLive = 2_592_000) // 30일 TTL
 data class RefreshToken(
+    
+    /**
+     * Redis Key로 사용될 ID (토큰 값)
+     */
+    @Id
+    val token: String,
     
     /**
      * 연결된 사용자 ID
@@ -18,13 +24,6 @@ data class RefreshToken(
      */
     @Indexed
     val userId: String,
-    
-    /**
-     * Refresh Token 값
-     * JWT 토큰 문자열
-     */
-    @Indexed(unique = true)
-    val token: String,
     
     /**
      * 토큰 만료 시간
@@ -43,12 +42,11 @@ data class RefreshToken(
     val ipAddress: String? = null,
     
     /**
-     * 토큰 활성화 여부
-     * false로 설정하면 해당 토큰은 무효화됨
+     * 토큰 생성 시간
      */
-    val isActive: Boolean = true
+    val createdAt: LocalDateTime = LocalDateTime.now()
     
-) : BaseDocument() {
+) {
     
     /**
      * 토큰이 만료되었는지 확인하는 메서드
@@ -61,21 +59,12 @@ data class RefreshToken(
     
     /**
      * 토큰이 유효한지 확인하는 메서드
-     * 활성화되어 있고 만료되지 않았으면 유효함
+     * 만료되지 않았으면 유효함
      * 
      * @return 유효하면 true, 그렇지 않으면 false
      */
     fun isValid(): Boolean {
-        return isActive && !isExpired() && !isDeleted
-    }
-    
-    /**
-     * 토큰을 무효화하는 메서드
-     * 
-     * @return 무효화된 RefreshToken 객체
-     */
-    fun deactivate(): RefreshToken {
-        return this.copy(isActive = false)
+        return !isExpired()
     }
     
     companion object {
@@ -83,23 +72,23 @@ data class RefreshToken(
         /**
          * 새로운 RefreshToken을 생성하는 팩토리 메서드
          * 
+         * @param token 토큰 값 (Redis Key로 사용)
          * @param userId 사용자 ID
-         * @param token 토큰 값
          * @param expiresAt 만료 시간
          * @param userAgent User-Agent 정보
          * @param ipAddress IP 주소
          * @return 새로운 RefreshToken 객체
          */
         fun create(
-            userId: String,
             token: String,
+            userId: String,
             expiresAt: LocalDateTime,
             userAgent: String? = null,
             ipAddress: String? = null
         ): RefreshToken {
             return RefreshToken(
-                userId = userId,
                 token = token,
+                userId = userId,
                 expiresAt = expiresAt,
                 userAgent = userAgent,
                 ipAddress = ipAddress
