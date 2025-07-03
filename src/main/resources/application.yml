@@ -25,12 +25,29 @@ spring:
             client-name: Google
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
-            redirect-uri: ${GOOGLE_URL}
+            redirect-uri: ${GOOGLE_REDIRECT_URI}
             scope:
               - openid
               - email
               - profile
             authorization-grant-type: authorization_code
+          kakao:
+            provider: kakao
+            client-name: Kakao
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            redirect-uri: ${KAKAO_REDIRECT_URI}
+            scope:
+              - profile_nickname
+              - account_email
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
 
 springdoc:
   swagger-ui:
@@ -52,12 +69,10 @@ cors:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRED}
-  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRED}
+  access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_EXPIRED:3600}
+  refresh-token-validity-in-seconds: ${JWT_REFRESH_TOKEN_EXPIRED:604800}
 
 logging:
   level:
     org.springframework.security: DEBUG
     org.springframework.web: DEBUG
-app:
-  frontend-url: ${FRONTEND_URL}
