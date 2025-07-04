@@ -5,7 +5,6 @@ import com.millo.ilhayoung.auth.jwt.JwtTokenProvider
 import com.millo.ilhayoung.auth.oauth2.CustomOAuth2UserService
 import com.millo.ilhayoung.auth.oauth2.OAuth2AuthenticationFailureHandler
 import com.millo.ilhayoung.auth.oauth2.OAuth2AuthenticationSuccessHandler
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -24,11 +23,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val customOAuth2UserService: CustomOAuth2UserService,
+    private val oAuth2AuthenticationSuccessHandler: OAuth2AuthenticationSuccessHandler
 ) {
-
-    @Value("\${cors.allowed-origins}")
-    private lateinit var allowedOrigins: String
 
     /**
      * Spring Security FilterChain 설정 (모바일 앱용)
@@ -46,7 +44,6 @@ class SecurityConfig(
             // 세션 정책: OAuth2 로그인만 세션 사용, 나머지는 JWT
             .sessionManagement { 
                 it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                it.maximumSessions(1).maxSessionsPreventsLogin(false)
             }
             
             // HTTP 요청에 대한 권한 설정
@@ -102,10 +99,10 @@ class SecurityConfig(
             .oauth2Login { oauth2 ->
                 oauth2
                     .userInfoEndpoint { userInfo ->
-                        userInfo.userService(customOAuth2UserService())
+                        userInfo.userService(customOAuth2UserService)
                     }
-                    .successHandler(oAuth2AuthenticationSuccessHandler())
-                    .failureHandler(oAuth2AuthenticationFailureHandler())
+                    .successHandler(oAuth2AuthenticationSuccessHandler)
+                    .failureHandler(OAuth2AuthenticationFailureHandler())
             }
             
             // JWT 필터 추가
@@ -145,29 +142,5 @@ class SecurityConfig(
         return UrlBasedCorsConfigurationSource().apply {
             registerCorsConfiguration("/**", configuration)
         }
-    }
-
-    /**
-     * 커스텀 OAuth2 사용자 서비스
-     */
-    @Bean
-    fun customOAuth2UserService(): CustomOAuth2UserService {
-        return CustomOAuth2UserService()
-    }
-
-    /**
-     * OAuth2 로그인 성공 핸들러
-     */
-    @Bean
-    fun oAuth2AuthenticationSuccessHandler(): OAuth2AuthenticationSuccessHandler {
-        return OAuth2AuthenticationSuccessHandler(jwtTokenProvider)
-    }
-
-    /**
-     * OAuth2 로그인 실패 핸들러
-     */
-    @Bean
-    fun oAuth2AuthenticationFailureHandler(): OAuth2AuthenticationFailureHandler {
-        return OAuth2AuthenticationFailureHandler()
     }
 } 
