@@ -27,6 +27,9 @@ enum class ErrorCode(
     INVALID_TOKEN("INVALID_TOKEN", "유효하지 않은 토큰입니다.", 401),
     EXPIRED_TOKEN("EXPIRED_TOKEN", "만료된 토큰입니다.", 401),
     REFRESH_TOKEN_EXPIRED("REFRESH_TOKEN_EXPIRED", "리프레시 토큰이 만료되었습니다.", 401),
+    ALREADY_REGISTERED("ALREADY_REGISTERED", "이미 등록된 사용자입니다.", 409),
+    INVALID_USER_TYPE("INVALID_USER_TYPE", "유효하지 않은 사용자 타입입니다.", 400),
+    USER_NOT_ACTIVE("USER_NOT_ACTIVE", "활성화되지 않은 사용자입니다.", 403),
     
     // 채용 관련 에러
     RECRUIT_NOT_FOUND("RECRUIT_NOT_FOUND", "채용 공고를 찾을 수 없습니다.", 404),
