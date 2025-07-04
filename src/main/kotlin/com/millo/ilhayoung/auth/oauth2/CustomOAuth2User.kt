@@ -14,43 +14,17 @@ class CustomOAuth2User(
     private val attributes: Map<String, Any>
 ) : OAuth2User {
 
-    override fun getAuthorities(): Collection<GrantedAuthority> {
-        // OAuth는 순수한 인증 정보만 담으므로 기본 권한만 부여
-        return listOf(SimpleGrantedAuthority("ROLE_USER"))
-    }
+    override fun getAuthorities(): Collection<GrantedAuthority> =
+        listOf(SimpleGrantedAuthority("ROLE_USER"))
 
     override fun getAttributes(): Map<String, Any> = attributes
 
     override fun getName(): String = user.email
 
-    /**
-     * OAuth 엔티티 반환
-     */
-    fun getUser(): OAuth = user
-
-    /**
-     * 사용자 ID 반환
-     */
-    fun getUserId(): String = user.id!!
-
-    /**
-     * 이메일 반환
-     */
+    // Convenience properties
     val email: String = user.email
-
-    /**
-     * OAuth 제공자 반환
-     */
     val provider: String = user.provider
-
-    /**
-     * OAuth 제공자 ID 반환
-     */
     val providerId: String = user.providerId
-
-    /**
-     * OAuth 이름 반환
-     */
     val displayName: String = user.getDisplayName()
 
     companion object {
