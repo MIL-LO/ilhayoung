@@ -43,8 +43,11 @@ class SecurityConfig(
             // CORS 설정 적용
             .cors { it.configurationSource(corsConfigurationSource()) }
             
-            // 세션 정책: Stateless (모바일 앱용)
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            // 세션 정책: OAuth2 로그인만 세션 사용, 나머지는 JWT
+            .sessionManagement { 
+                it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                it.maximumSessions(1).maxSessionsPreventsLogin(false)
+            }
             
             // HTTP 요청에 대한 권한 설정
             .authorizeHttpRequests { authz ->
@@ -72,19 +75,15 @@ class SecurityConfig(
                         "/api/v1/users/manager/signup"
                     ).authenticated()
                     
-                    // STAFF 전용 API
+                    // STAFF & MANAGER API (실시간 권한 체크 패턴)
                     .requestMatchers(
-                        "/api/v1/users/staff/**"
-                    ).hasRole("STAFF")
-                    
-                    // MANAGER 전용 API
-                    .requestMatchers(
+                        "/api/v1/users/staff/**",
                         "/api/v1/users/manager/**",
                         "/api/v1/recruits/**",
                         "/api/v1/attendances/register/**",
                         "/api/v1/salaries/calculate/**",
                         "/api/v1/salaries/pay/**"
-                    ).hasRole("MANAGER")
+                    ).authenticated()
                     
                     // 인증된 사용자 API
                     .requestMatchers(
@@ -124,8 +123,8 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            // 모바일 앱을 위한 Origin 설정 (테스트용 임시 고정값)
-            allowedOriginPatterns = listOf("*", "http://localhost:*", "https://*.vercel.app")
+            // 모바일 앱을 위한 Origin 설정 (테스트용 임시)
+            allowedOriginPatterns = listOf("*")
             
             // 모바일 앱에서 사용하는 HTTP 메서드
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
