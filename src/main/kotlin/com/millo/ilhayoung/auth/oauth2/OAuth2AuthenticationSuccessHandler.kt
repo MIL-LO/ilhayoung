@@ -1,21 +1,30 @@
 package com.millo.ilhayoung.auth.oauth2
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.millo.ilhayoung.auth.domain.OAuth
+import com.millo.ilhayoung.auth.domain.RefreshToken
+import com.millo.ilhayoung.auth.dto.SimpleOAuthResponse
+import com.millo.ilhayoung.auth.dto.OAuthLoginSuccessResponse
 import com.millo.ilhayoung.auth.jwt.JwtTokenProvider
-import com.millo.ilhayoung.auth.service.AuthService
-import com.millo.ilhayoung.user.repository.UserRepository
+import com.millo.ilhayoung.auth.repository.OAuthRepository
+import com.millo.ilhayoung.auth.repository.RefreshTokenRepository
+import com.millo.ilhayoung.user.repository.StaffRepository
+import com.millo.ilhayoung.user.repository.ManagerRepository
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.Authentication
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
-import org.springframework.security.oauth2.core.oidc.user.OidcUser
-import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler
 import org.springframework.stereotype.Component
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
- * OAuth2 로그인 성공 처리 핸들러 (모바일 최적화)
- * JWT 토큰을 JSON 응답으로 반환
+ * OAuth2 로그인 성공 처리 핸들러 (프론트엔드 role 파라미터 기반)
+ * 1. 프론트엔드에서 전달한 role 파라미터 확인
+ * 2. provider+providerId로 OAuth 조회/생성
+ * 3. 선택된 role 기준으로 엔터티 조회 (생성은 회원가입 시)
+ * 4. 임시/최종 토큰 발급
  */
 @Component
 class OAuth2AuthenticationSuccessHandler(
@@ -23,171 +32,198 @@ class OAuth2AuthenticationSuccessHandler(
 ) : SimpleUrlAuthenticationSuccessHandler() {
 
     @Autowired
-    private lateinit var authService: AuthService
+    private lateinit var oauthRepository: OAuthRepository
     
     @Autowired
-    private lateinit var userRepository: UserRepository
+    private lateinit var staffRepository: StaffRepository
+    
+    @Autowired
+    private lateinit var managerRepository: ManagerRepository
+    
+    @Autowired
+    private lateinit var refreshTokenRepository: RefreshTokenRepository
+    
+    @Autowired
+    private lateinit var objectMapper: ObjectMapper
 
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
         response: HttpServletResponse,
         authentication: Authentication
     ) {
-        println("🔥 OAuth2 로그인 성공 - 모바일 앱용 처리 시작")
+        val oauth2User = authentication.principal as CustomOAuth2User
+        val email = oauth2User.email
+        val provider = oauth2User.provider
+        val providerId = oauth2User.providerId
+        val oauthName = oauth2User.displayName
         
-        try {
-            when (val principal = authentication.principal) {
-                is CustomOAuth2User -> {
-                    val user = principal.getUser()
-                    handleUserLogin(user, request, response)
-                }
-                is OidcUser -> {
-                    handleOidcUserLogin(principal, request, response)
-                }
-                is OAuth2User -> {
-                    handleOAuth2UserLogin(principal, authentication, request, response)
-                }
-                else -> {
-                    sendErrorResponse(response, "지원하지 않는 인증 타입입니다.")
-                }
+        // 프론트엔드에서 전달한 role 파라미터 추출
+        val selectedRole = request.getParameter("role")?.uppercase() ?: "STAFF"
+        
+        // provider+providerId로 OAuth 조회 또는 생성
+        val oauth = findOrCreateOAuth(email, provider, providerId, oauthName, selectedRole)
+        
+        // 회원가입 상태 확인 (role 구분 없이 통합 처리)
+        handleOAuthSuccess(response, oauth)
+    }
+
+    /**
+     * provider+providerId로 OAuth 조회 또는 생성
+     */
+    private fun findOrCreateOAuth(email: String, provider: String, providerId: String, oauthName: String, selectedRole: String): OAuth {
+        // provider+providerId로 조회 (시나리오 요구사항)
+        val existingOAuth = oauthRepository.findByProviderAndProviderId(provider, providerId)
+        
+        return if (existingOAuth.isPresent) {
+            val oauth = existingOAuth.get()
+            var needUpdate = false
+            
+            // OAuth 이름 업데이트
+            if (oauth.oauthName != oauthName) {
+                oauth.oauthName = oauthName
+                needUpdate = true
             }
-        } catch (e: Exception) {
-            println("🔥 OAuth2 처리 중 오류 발생: ${e.message}")
-            sendErrorResponse(response, "인증 처리 중 오류가 발생했습니다.")
-        }
-    }
-
-    private fun handleUserLogin(user: com.millo.ilhayoung.user.domain.User, request: HttpServletRequest, response: HttpServletResponse) {
-        println("🔥 사용자 로그인 처리: ${user.email}, 타입: ${user.userType}, 추가정보필요: ${user.needAdditionalInfo}")
-        
-        // JWT 토큰 생성 (항상 현재 사용자 상태로 발행)
-        val accessToken = jwtTokenProvider.createAccessToken(user.id!!, user.userType, user.email)
-        val refreshTokenValue = jwtTokenProvider.createRefreshToken(user.id!!)
-
-        // Refresh Token 저장
-        saveRefreshToken(user.id!!, refreshTokenValue, request)
-
-        // 로그인 시간 업데이트
-        user.updateLastLogin()
-        userRepository.save(user)
-
-        // JSON 응답 전송
-        sendSuccessResponse(accessToken, refreshTokenValue, user, response)
-    }
-
-    private fun handleOidcUserLogin(oidcUser: OidcUser, request: HttpServletRequest, response: HttpServletResponse) {
-        // OIDC User는 현재 CustomOAuth2UserService를 통해 처리되지 않으므로 
-        // 직접 사용자 조회/생성 (Google OAuth는 일반적으로 CustomOAuth2User로 처리됨)
-        val email = oidcUser.email ?: ""
-        val user = userRepository.findByEmail(email)
-            .orElseThrow { RuntimeException("사용자를 찾을 수 없습니다. CustomOAuth2UserService를 통해 먼저 처리되어야 합니다.") }
-        
-        handleUserLogin(user, request, response)
-    }
-
-    private fun handleOAuth2UserLogin(oAuth2User: OAuth2User, authentication: Authentication, request: HttpServletRequest, response: HttpServletResponse) {
-        // OAuth2User는 현재 CustomOAuth2UserService를 통해 처리되지 않으므로
-        // 직접 사용자 조회 (일반적으로 CustomOAuth2User로 처리됨)
-        val registrationId = getRegistrationId(authentication)
-        val oAuthUserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(registrationId, oAuth2User.attributes)
-        val email = oAuthUserInfo.getEmail()
-        
-        val user = userRepository.findByEmail(email)
-            .orElseThrow { RuntimeException("사용자를 찾을 수 없습니다. CustomOAuth2UserService를 통해 먼저 처리되어야 합니다.") }
-        
-        handleUserLogin(user, request, response)
-    }
-
-    private fun getRegistrationId(authentication: Authentication): String {
-        return if (authentication is OAuth2AuthenticationToken) {
-            authentication.authorizedClientRegistrationId
+            
+            // 선택된 역할 정보 업데이트 (매번 로그인할 때마다 프론트엔드에서 전달하는 role로 업데이트)
+            if (oauth.selectedRole != selectedRole) {
+                oauth.selectedRole = selectedRole
+                needUpdate = true
+            }
+            
+            if (needUpdate) {
+                oauthRepository.save(oauth)
+            }
+            oauth
         } else {
-            "google"
+            // 새로운 OAuth 생성 (선택된 역할 정보도 함께 저장)
+            val newOAuth = OAuth.createFromOAuth(
+                email = email,
+                provider = provider,
+                providerId = providerId,
+                oauthName = oauthName
+            )
+            // 선택된 역할 정보를 OAuth에 임시 저장 (회원가입 시 사용)
+            newOAuth.selectedRole = selectedRole
+            oauthRepository.save(newOAuth)
         }
     }
 
     /**
-     * 성공 응답 전송 (모바일 앱용 JSON)
+     * OAuth 인증 성공 통합 처리
+     * Staff와 Manager 구분 없이 회원가입 상태만 확인
      */
-    private fun sendSuccessResponse(
-        accessToken: String, 
-        refreshToken: String, 
-        user: com.millo.ilhayoung.user.domain.User, 
-        response: HttpServletResponse
-    ) {
-        response.contentType = "application/json;charset=UTF-8"
-        response.status = HttpServletResponse.SC_OK
+    private fun handleOAuthSuccess(response: HttpServletResponse, oauth: OAuth) {
+        val staffOpt = staffRepository.findByUserId(oauth.id!!)
+        val managerOpt = managerRepository.findByUserId(oauth.id!!)
         
-        val jsonResponse = """
-            {
-                "success": true,
-                "data": {
-                    "accessToken": "$accessToken",
-                    "refreshToken": "$refreshToken",
-                    "userType": "${user.userType?.code ?: ""}",
-                    "needAdditionalInfo": ${user.needAdditionalInfo},
-                    "user": {
-                        "id": "${user.id}",
-                        "email": "${user.email}",
-                        "oauthName": "${user.oauthName ?: ""}"
-                    }
-                }
+        when {
+            // Staff로 이미 회원가입 완료 → Staff 로그인
+            staffOpt.isPresent && staffOpt.get().isActive() -> {
+                val accessToken = jwtTokenProvider.createAccessToken(
+                    userId = oauth.id!!,
+                    userType = "STAFF",
+                    status = "ACTIVE",
+                    email = oauth.email
+                )
+                
+                val refreshToken = jwtTokenProvider.createRefreshToken(oauth.id!!)
+                val refreshTokenEntity = RefreshToken.create(
+                    token = refreshToken,
+                    userId = oauth.id!!,
+                    expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
+                )
+                refreshTokenRepository.save(refreshTokenEntity)
+                
+                val responseBody = OAuthLoginSuccessResponse(
+                    success = true,
+                    message = "STAFF 로그인 성공",
+                    accessToken = accessToken,
+                    refreshToken = refreshToken
+                )
+                sendResponse(response, responseBody)
             }
-        """.trimIndent()
-        
-        response.writer.write(jsonResponse)
-        response.writer.flush()
-        
-        println("🔥 모바일 앱용 JSON 응답 전송 완료")
+            
+            // Manager로 이미 회원가입 완료 → Manager 로그인
+            managerOpt.isPresent && managerOpt.get().isActive() -> {
+                val accessToken = jwtTokenProvider.createAccessToken(
+                    userId = oauth.id!!,
+                    userType = "MANAGER",
+                    status = "ACTIVE",
+                    email = oauth.email
+                )
+                
+                val refreshToken = jwtTokenProvider.createRefreshToken(oauth.id!!)
+                val refreshTokenEntity = RefreshToken.create(
+                    token = refreshToken,
+                    userId = oauth.id!!,
+                    expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
+                )
+                refreshTokenRepository.save(refreshTokenEntity)
+                
+                val responseBody = OAuthLoginSuccessResponse(
+                    success = true,
+                    message = "MANAGER 로그인 성공",
+                    accessToken = accessToken,
+                    refreshToken = refreshToken
+                )
+                sendResponse(response, responseBody)
+            }
+            
+            // 삭제된 계정들 처리
+            (staffOpt.isPresent && staffOpt.get().isDeleted()) || 
+            (managerOpt.isPresent && managerOpt.get().isDeleted()) -> {
+                handleDeletedUser(response, "삭제된 계정입니다.")
+            }
+            
+            // 아직 회원가입하지 않음 → 중립적인 안내 메시지
+            else -> {
+                val accessToken = jwtTokenProvider.createAccessToken(
+                    userId = oauth.id!!,
+                    userType = "PENDING", // OAuth 인증만 완료된 상태
+                    status = "PENDING",
+                    email = oauth.email
+                )
+                
+                val responseBody = SimpleOAuthResponse(
+                    success = true,
+                    message = "OAuth 인증이 완료되었습니다. 회원가입을 진행해주세요.",
+                    accessToken = accessToken
+                )
+                sendResponse(response, responseBody)
+            }
+        }
     }
 
     /**
-     * 에러 응답 전송 (모바일 앱용 JSON)
+     * 삭제된 사용자 처리
      */
-    private fun sendErrorResponse(response: HttpServletResponse, message: String) {
-        response.contentType = "application/json;charset=UTF-8"
-        response.status = HttpServletResponse.SC_BAD_REQUEST
-        
-        val jsonResponse = """
-            {
-                "success": false,
-                "error": {
-                    "code": "oauth2_authentication_failed",
-                    "message": "$message"
-                }
-            }
-        """.trimIndent()
-        
-        response.writer.write(jsonResponse)
-        response.writer.flush()
-    }
-
-    /**
-     * Refresh Token 저장 (디바이스 정보 포함)
-     */
-    private fun saveRefreshToken(userId: String, refreshTokenValue: String, request: HttpServletRequest) {
-        val userAgent = request.getHeader("User-Agent")
-        val ipAddress = getClientIpAddress(request)
-        
-        authService.saveRefreshTokenWithDeviceInfo(
-            userId = userId,
-            refreshTokenValue = refreshTokenValue,
-            userAgent = userAgent,
-            ipAddress = ipAddress
+    private fun handleDeletedUser(response: HttpServletResponse, message: String) {
+        val responseBody = SimpleOAuthResponse(
+            success = false,
+            message = message,
+            accessToken = ""
         )
+        sendResponse(response, responseBody)
     }
 
     /**
-     * 클라이언트 IP 주소 추출
+     * 오류 처리
      */
-    private fun getClientIpAddress(request: HttpServletRequest): String {
-        val xForwardedFor = request.getHeader("X-Forwarded-For")
-        val xRealIp = request.getHeader("X-Real-IP")
-        
-        return when {
-            !xForwardedFor.isNullOrBlank() -> xForwardedFor.split(",")[0].trim()
-            !xRealIp.isNullOrBlank() -> xRealIp
-            else -> request.remoteAddr
-        }
+    private fun handleError(response: HttpServletResponse, message: String) {
+        val responseBody = SimpleOAuthResponse(
+            success = false,
+            message = message,
+            accessToken = ""
+        )
+        sendResponse(response, responseBody)
+    }
+
+    /**
+     * 응답 전송 공통 메서드
+     */
+    private fun sendResponse(response: HttpServletResponse, responseBody: Any) {
+        response.contentType = "application/json"
+        response.characterEncoding = "UTF-8"
+        response.writer.write(objectMapper.writeValueAsString(responseBody))
     }
 } 
