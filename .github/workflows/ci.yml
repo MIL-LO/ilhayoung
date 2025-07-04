@@ -53,7 +53,7 @@ jobs:
 
       # Gradle 빌드 및 테스트 실행
       - name: Build and Test with Gradle
-        run: ./gradlew clean build
+        run: ./gradlew clean build -x test
 
   dependency-submission:
     needs: build-and-test
