@@ -1,8 +1,10 @@
 package com.millo.ilhayoung.user.controller
 
 import com.millo.ilhayoung.auth.jwt.UserPrincipal
+import com.millo.ilhayoung.auth.dto.SignupCompleteResponse
 import com.millo.ilhayoung.common.dto.ApiResponse
 import com.millo.ilhayoung.common.dto.MessageResponse
+import com.millo.ilhayoung.common.security.PermissionChecker
 import com.millo.ilhayoung.user.dto.*
 import com.millo.ilhayoung.user.service.UserService
 import io.swagger.v3.oas.annotations.Operation
@@ -13,14 +15,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
 /**
- * User 관련 API를 담당하는 Controller 클래스
+ * User 관련 API를 담당하는 Controller 클래스 (실시간 권한 체크 패턴)
  * 회원가입, 정보 조회/수정, 회원 탈퇴 기능을 담당
  */
 @Tag(name = "User", description = "사용자 관리 API")
 @RestController
 @RequestMapping("/api/v1/users")
 class UserController(
-    private val userService: UserService
+    private val userService: UserService,
+    private val permissionChecker: PermissionChecker
 ) {
     
     /**
@@ -101,6 +104,9 @@ class UserController(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Valid @RequestBody request: StaffUpdateRequest
     ): ApiResponse<MessageResponse> {
+        // 실시간 권한 체크: STAFF만 접근 가능
+        permissionChecker.requireStaffPermission()
+        
         userService.updateStaff(userPrincipal.userId, request)
         return ApiResponse.success(MessageResponse.staffInfoUpdated())
     }
@@ -122,6 +128,9 @@ class UserController(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Valid @RequestBody request: ManagerUpdateRequest
     ): ApiResponse<MessageResponse> {
+        // 실시간 권한 체크: MANAGER만 접근 가능
+        permissionChecker.requireManagerPermission()
+        
         userService.updateManager(userPrincipal.userId, request)
         return ApiResponse.success(MessageResponse.managerInfoUpdated())
     }
