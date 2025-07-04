@@ -46,31 +46,22 @@ class CustomOAuth2UserService : DefaultOAuth2UserService() {
         val existingUser = oauthRepository.findByEmail(oAuthUserInfo.getEmail())
         
         return if (existingUser.isPresent) {
-            // 기존 사용자 반환 (OAuth 이름 업데이트 로직 추가)
             val user = existingUser.get()
-            
-            // OAuth 이름이 없거나 변경된 경우 업데이트
             val oauthName = oAuthUserInfo.getName()
             if (user.oauthName != oauthName) {
                 user.oauthName = oauthName
                 oauthRepository.save(user)
-                user
-            } else {
-                // 기존 사용자 그대로 반환
-                user
             }
+            user
         } else {
-            // OAuth 이름 가져오기
-            val oauthName = oAuthUserInfo.getName()
-            
-            // 새로운 사용자 생성
             val newUser = OAuth.createFromOAuth(
                 email = oAuthUserInfo.getEmail(),
                 provider = provider,
                 providerId = oAuthUserInfo.getId(),
-                oauthName = oauthName
+                oauthName = oAuthUserInfo.getName()
             )
             oauthRepository.save(newUser)
+            newUser
         }
     }
 } 

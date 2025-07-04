@@ -51,7 +51,34 @@ class OAuth2AuthenticationSuccessHandler(
         response: HttpServletResponse,
         authentication: Authentication
     ) {
-        val oauth2User = authentication.principal as CustomOAuth2User
+        val principal = authentication.principal
+
+        val oauth2User = when (principal) {
+            is CustomOAuth2User -> principal
+            is org.springframework.security.oauth2.core.oidc.user.OidcUser -> {
+                val attributes = principal.attributes
+                val email = attributes["email"] as? String ?: throw IllegalStateException("Email not found in OIDC attributes")
+                val name = attributes["name"] as? String ?: ""
+                val provider = "google"
+                val providerId = attributes["sub"].toString()
+
+                // OAuth 조회 또는 생성
+                val user = oauthRepository.findByEmail(email).orElseGet {
+                    val newUser = OAuth.createFromOAuth(
+                        email = email,
+                        provider = provider,
+                        providerId = providerId,
+                        oauthName = name
+                    )
+                    oauthRepository.save(newUser)
+                    newUser
+                }
+
+                CustomOAuth2User.create(user, attributes)
+            }
+            else -> throw IllegalArgumentException("Unexpected principal type: \\${principal::class}")
+        }
+
         val email = oauth2User.email
         val provider = oauth2User.provider
         val providerId = oauth2User.providerId
