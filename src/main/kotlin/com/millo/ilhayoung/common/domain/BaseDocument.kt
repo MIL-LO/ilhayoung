@@ -32,34 +32,4 @@ abstract class BaseDocument {
      */
     @LastModifiedDate
     var updatedAt: LocalDateTime? = null
-    
-    /**
-     * 문서 삭제 여부 (소프트 삭제)
-     * true: 삭제됨, false: 활성 상태
-     */
-    var isDeleted: Boolean = false
-    
-    /**
-     * 문서 삭제 일시
-     * isDeleted가 true로 변경될 때 설정
-     */
-    var deletedAt: LocalDateTime? = null
-    
-    /**
-     * 소프트 삭제를 수행하는 메서드
-     * isDeleted를 true로 설정하고 deletedAt에 현재 시간을 기록
-     */
-    fun softDelete() {
-        this.isDeleted = true
-        this.deletedAt = LocalDateTime.now()
-    }
-    
-    /**
-     * 소프트 삭제를 복구하는 메서드
-     * isDeleted를 false로 설정하고 deletedAt을 null로 초기화
-     */
-    fun restore() {
-        this.isDeleted = false
-        this.deletedAt = null
-    }
 } 

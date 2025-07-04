@@ -20,29 +20,12 @@ interface StaffRepository : MongoRepository<Staff, String> {
     fun findByUserId(userId: String): Optional<Staff>
     
     /**
-     * 구직 상태로 Staff 목록을 찾는 메서드
+     * 전화번호 존재 여부 확인
      * 
-     * @param isJobSeeking 구직 활성화 여부
-     * @return Staff 목록
+     * @param phone 전화번호
+     * @return 존재 여부
      */
-    fun findByIsJobSeeking(isJobSeeking: Boolean): List<Staff>
-    
-    /**
-     * 신뢰도 점수 범위로 Staff 목록을 찾는 메서드
-     * 
-     * @param minScore 최소 신뢰도 점수
-     * @param maxScore 최대 신뢰도 점수
-     * @return Staff 목록
-     */
-    fun findByTrustScoreBetween(minScore: Int, maxScore: Int): List<Staff>
-    
-    /**
-     * 선호 업종에 해당하는 Staff 목록을 찾는 메서드
-     * 
-     * @param jobType 업종
-     * @return Staff 목록
-     */
-    fun findByPreferredJobTypesContaining(jobType: String): List<Staff>
+    fun existsByPhone(phone: String): Boolean
     
     /**
      * 사용자 ID로 Staff 존재 여부 확인

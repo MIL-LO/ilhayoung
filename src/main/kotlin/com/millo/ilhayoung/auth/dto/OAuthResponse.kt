@@ -1,7 +1,7 @@
 package com.millo.ilhayoung.auth.dto
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
-import java.time.LocalDateTime
 
 /**
  * 토큰 재발급 요청 DTO
@@ -13,6 +13,7 @@ data class RefreshTokenRequest(
      * Refresh Token
      */
     @Schema(description = "Refresh Token", example = "eyJhbGciOiJIUzI1...")
+    @JsonProperty("refreshToken")
     val refreshToken: String
 )
 
@@ -39,7 +40,13 @@ data class LogoutResponse(
      * 로그아웃 메시지
      */
     @Schema(description = "로그아웃 메시지", example = "Logged out")
-    val message: String = "Logged out"
+    val message: String = "로그아웃이 완료되었습니다.",
+    
+    /**
+     * 무효화된 토큰 수
+     */
+    @Schema(description = "무효화된 토큰 수", example = "2")
+    val invalidatedTokens: Int = 0
 )
 
 /**
@@ -70,54 +77,127 @@ data class TokenValidationResponse(
      * 사용자 타입
      */
     @Schema(description = "사용자 타입", example = "STAFF")
-    val userType: String?,
+    val userType: String,
     
     /**
-     * 추가 정보 입력 필요 여부
+     * 사용자 상태
      */
-    @Schema(description = "추가 정보 입력 필요 여부", example = "false")
-    val needAdditionalInfo: Boolean,
+    @Schema(description = "사용자 상태", example = "ACTIVE")
+    val status: String,
     
     /**
-     * OAuth에서 받은 사용자 이름 (회원가입 폼 미리 채우기용)
+     * OAuth 이름
      */
-    @Schema(description = "OAuth에서 받은 사용자 이름", example = "홍길동")
-    val oauthName: String?
+    @Schema(description = "OAuth 이름", example = "홍길동")
+    val oauthName: String,
+    
+    /**
+     * 권한 목록
+     */
+    @Schema(description = "권한 목록", example = "[\"ROLE_STAFF\"]")
+    val authorities: List<String>
 )
 
 /**
- * 활성 세션 응답 DTO
+ * 회원가입 완료 응답 DTO
  */
-@Schema(description = "활성 세션 정보")
-data class ActiveSessionResponse(
+@Schema(description = "회원가입 완료 응답")
+data class SignupCompleteResponse(
+    /**
+     * 완료 메시지
+     */
+    @Schema(description = "완료 메시지", example = "STAFF 회원가입이 완료되었습니다.")
+    val message: String,
+    /**
+     * 사용자 타입
+     */
+    @Schema(description = "사용자 타입", example = "STAFF")
+    val userType: String,
+    /**
+     * Access Token
+     */
+    @Schema(description = "Access Token", example = "eyJhbGciOiJIUzI1...")
+    val accessToken: String,
+    /**
+     * Refresh Token
+     */
+    @Schema(description = "Refresh Token", example = "eyJhbGciOiJIUzI1...")
+    val refreshToken: String
+)
+
+/**
+ * 토큰 응답 DTO
+ */
+@Schema(description = "토큰 응답")
+data class TokenResponse(
     
     /**
-     * 토큰 ID (보안을 위해 마지막 8자리만)
+     * 액세스 토큰
      */
-    @Schema(description = "토큰 ID", example = "...ab123456")
-    val tokenId: String,
+    @Schema(description = "액세스 토큰", example = "eyJhbGciOiJIUzI1...")
+    val accessToken: String,
     
     /**
-     * 세션 생성 시간
+     * 리프레시 토큰
      */
-    @Schema(description = "세션 생성 시간")
-    val createdAt: LocalDateTime,
+    @Schema(description = "리프레시 토큰", example = "eyJhbGciOiJIUzI1...")
+    val refreshToken: String
+)
+
+/**
+ * 간소화된 OAuth 로그인 응답 DTO (JWT 토큰만 포함)
+ */
+@Schema(description = "간소화된 OAuth 로그인 응답")
+data class SimpleOAuthResponse(
     
     /**
-     * 세션 만료 시간
+     * 성공 여부
      */
-    @Schema(description = "세션 만료 시간")
-    val expiresAt: LocalDateTime,
+    @Schema(description = "성공 여부", example = "true")
+    val success: Boolean,
     
     /**
-     * User-Agent 정보
+     * 응답 메시지
      */
-    @Schema(description = "User-Agent 정보", example = "Mozilla/5.0...")
-    val userAgent: String?,
+    @Schema(description = "응답 메시지", example = "로그인 성공")
+    val message: String,
     
     /**
-     * IP 주소
+     * Access Token (JWT에 모든 정보 포함)
      */
-    @Schema(description = "IP 주소", example = "192.168.1.100")
-    val ipAddress: String?
-) 
+    @Schema(description = "Access Token", example = "eyJhbGciOiJIUzI1...")
+    val accessToken: String
+)
+
+/**
+ * OAuth 로그인 성공 응답 DTO (refreshToken 포함)
+ */
+@Schema(description = "OAuth 로그인 성공 응답 (refreshToken 포함)")
+data class OAuthLoginSuccessResponse(
+    
+    /**
+     * 성공 여부
+     */
+    @Schema(description = "성공 여부", example = "true")
+    val success: Boolean,
+    
+    /**
+     * 응답 메시지
+     */
+    @Schema(description = "응답 메시지", example = "로그인 성공")
+    val message: String,
+    
+    /**
+     * Access Token (JWT에 모든 정보 포함)
+     */
+    @Schema(description = "Access Token", example = "eyJhbGciOiJIUzI1...")
+    val accessToken: String,
+    
+    /**
+     * Refresh Token
+     */
+    @Schema(description = "Refresh Token", example = "eyJhbGciOiJIUzI1...")
+    val refreshToken: String
+)
+
+ 

@@ -28,45 +28,20 @@ interface ManagerRepository : MongoRepository<Manager, String> {
     fun findByBusinessNumber(businessNumber: String): Optional<Manager>
     
     /**
-     * 업종으로 Manager 목록을 찾는 메서드
-     * 
-     * @param businessType 업종
-     * @return Manager 목록
-     */
-    fun findByBusinessType(businessType: String): List<Manager>
-    
-    /**
-     * 모집 활성화 상태로 Manager 목록을 찾는 메서드
-     * 
-     * @param isRecruitingActive 모집 활성화 여부
-     * @return Manager 목록
-     */
-    fun findByIsRecruitingActive(isRecruitingActive: Boolean): List<Manager>
-    
-    /**
-     * 사업자등록번호 검증 상태로 Manager 목록을 찾는 메서드
-     * 
-     * @param isBusinessNumberVerified 사업자등록번호 검증 상태
-     * @return Manager 목록
-     */
-    fun findByIsBusinessNumberVerified(isBusinessNumberVerified: Boolean): List<Manager>
-    
-    /**
-     * 신뢰도 점수 범위로 Manager 목록을 찾는 메서드
-     * 
-     * @param minScore 최소 신뢰도 점수
-     * @param maxScore 최대 신뢰도 점수
-     * @return Manager 목록
-     */
-    fun findByTrustScoreBetween(minScore: Double, maxScore: Double): List<Manager>
-    
-    /**
      * 사업자등록번호 존재 여부 확인
      * 
      * @param businessNumber 사업자등록번호
      * @return 존재 여부
      */
     fun existsByBusinessNumber(businessNumber: String): Boolean
+    
+    /**
+     * 전화번호 존재 여부 확인
+     * 
+     * @param phone 전화번호
+     * @return 존재 여부
+     */
+    fun existsByPhone(phone: String): Boolean
     
     /**
      * 사용자 ID로 Manager 존재 여부 확인

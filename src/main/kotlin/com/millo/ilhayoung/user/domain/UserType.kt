@@ -44,4 +44,14 @@ enum class UserType(
             return fromCode(code) ?: throw IllegalArgumentException("유효하지 않은 사용자 타입입니다: $code")
         }
     }
+}
+
+/**
+ * 사용자 상태 enum
+ * OAuth 로그인부터 회원 탈퇴까지의 전체 생명주기 관리
+ */
+enum class UserStatus(val code: String, val description: String) {
+    PENDING("PENDING", "OAuth 로그인만 완료, 회원가입 필요"),
+    ACTIVE("ACTIVE", "회원가입 완료, 활성 상태"),
+    DELETED("DELETED", "회원 탈퇴, 삭제된 상태");
 } 

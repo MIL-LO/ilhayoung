@@ -1,7 +1,7 @@
 package com.millo.ilhayoung.auth.oauth2
 
-import com.millo.ilhayoung.user.domain.User
-import com.millo.ilhayoung.user.repository.UserRepository
+import com.millo.ilhayoung.auth.domain.OAuth
+import com.millo.ilhayoung.auth.repository.OAuthRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service
 class CustomOAuth2UserService : DefaultOAuth2UserService() {
     
     @Autowired
-    private lateinit var userRepository: UserRepository
+    private lateinit var oauthRepository: OAuthRepository
 
     /**
      * OAuth2 사용자 정보를 로드하고 User 엔티티와 연동
@@ -41,45 +41,36 @@ class CustomOAuth2UserService : DefaultOAuth2UserService() {
     /**
      * OAuth2 사용자 정보로 User 찾기 또는 생성
      */
-    private fun findOrCreateUser(oAuthUserInfo: OAuth2UserInfo, provider: String): User {
+    private fun findOrCreateUser(oAuthUserInfo: OAuth2UserInfo, provider: String): OAuth {
         // 이메일로 기존 사용자 조회
-        val existingUser = userRepository.findByEmail(oAuthUserInfo.getEmail())
+        val existingUser = oauthRepository.findByEmail(oAuthUserInfo.getEmail())
         
         return if (existingUser.isPresent) {
             // 기존 사용자 반환 (OAuth 이름 업데이트 로직 추가)
             val user = existingUser.get()
-            println("🔥 기존 사용자 로그인: ${user.email}, oauthName='${user.oauthName}'")
             
             // OAuth 이름이 없거나 변경된 경우 업데이트
             val oauthName = oAuthUserInfo.getName()
             if (user.oauthName != oauthName) {
-                println("🔥 OAuth 이름 업데이트: ${user.email} -> '$oauthName'")
-                val updatedUser = user.copy(oauthName = oauthName).apply {
-                    this.id = user.id
-                    this.createdAt = user.createdAt
-                    this.updatedAt = user.updatedAt
-                    this.isDeleted = user.isDeleted
-                    this.deletedAt = user.deletedAt
-                }
-                userRepository.save(updatedUser)
+                user.oauthName = oauthName
+                oauthRepository.save(user)
+                user
             } else {
-                // 마지막 로그인 시간 업데이트
-                user.updateLastLogin()
-                userRepository.save(user)
+                // 기존 사용자 그대로 반환
+                user
             }
         } else {
             // OAuth 이름 가져오기
             val oauthName = oAuthUserInfo.getName()
-            println("🔥 새로운 사용자 생성: email=${oAuthUserInfo.getEmail()}, oauthName='$oauthName'")
             
             // 새로운 사용자 생성
-            val newUser = User.createFromOAuth(
+            val newUser = OAuth.createFromOAuth(
                 email = oAuthUserInfo.getEmail(),
-                oauthId = oAuthUserInfo.getId(),
-                oauthProvider = provider,
+                provider = provider,
+                providerId = oAuthUserInfo.getId(),
                 oauthName = oauthName
             )
-            userRepository.save(newUser)
+            oauthRepository.save(newUser)
         }
     }
 } 

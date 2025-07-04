@@ -18,8 +18,6 @@ class OAuth2AuthenticationFailureHandler : SimpleUrlAuthenticationFailureHandler
         response: HttpServletResponse,
         exception: AuthenticationException
     ) {
-        println("🔥 OAuth2 로그인 실패: ${exception.message}")
-        
         sendErrorResponse(response, exception.localizedMessage ?: "OAuth2 인증에 실패했습니다.")
     }
 
@@ -42,7 +40,5 @@ class OAuth2AuthenticationFailureHandler : SimpleUrlAuthenticationFailureHandler
         
         response.writer.write(jsonResponse)
         response.writer.flush()
-        
-        println("🔥 OAuth2 실패 JSON 응답 전송 완료")
     }
 } 

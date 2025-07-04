@@ -36,22 +36,34 @@ class JwtAuthenticationFilter(
             // 요청에서 JWT 토큰 추출
             val token = resolveToken(request)
             
-            // 토큰이 존재하고 유효한 경우
-            if (token != null && jwtTokenProvider.validateToken(token)) {
-                // Access Token인지 확인
-                if (jwtTokenProvider.isAccessToken(token)) {
-                    // 토큰에서 인증 정보 추출하여 Security Context에 설정
-                    val authentication = jwtTokenProvider.getAuthentication(token)
-                    SecurityContextHolder.getContext().authentication = authentication
+            // 토큰이 존재하는 경우
+            if (token != null) {
+                // 토큰 유효성 검증 (블랙리스트 체크 포함)
+                if (jwtTokenProvider.validateToken(token)) {
+                    // Access Token인지 확인
+                    if (jwtTokenProvider.isAccessToken(token)) {
+                        // 토큰에서 인증 정보 추출하여 Security Context에 설정
+                        val authentication = jwtTokenProvider.getAuthentication(token)
+                        SecurityContextHolder.getContext().authentication = authentication
+                    } else {
+                        // Refresh Token으로 요청한 경우 (잘못된 요청)
+                        logger.warn("Access Token이 아닌 Refresh Token으로 요청: ${request.requestURI}")
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token type")
+                        return
+                    }
                 } else {
-                    // Refresh Token으로 요청한 경우 (잘못된 요청)
-                    logger.warn("Access Token이 아닌 Refresh Token으로 요청: ${request.requestURI}")
+                    // 토큰이 유효하지 않거나 블랙리스트된 경우
+                    logger.warn("Invalid or blacklisted token: ${request.requestURI}")
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or blacklisted token")
+                    return
                 }
             }
         } catch (e: Exception) {
             // JWT 토큰 처리 중 예외 발생 시 로그 기록
             logger.error("JWT 토큰 처리 중 오류 발생: ${e.message}")
             SecurityContextHolder.clearContext()
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token processing error")
+            return
         }
 
         // 다음 필터로 요청 전달

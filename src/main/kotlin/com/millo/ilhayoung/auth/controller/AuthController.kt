@@ -7,13 +7,18 @@ import com.millo.ilhayoung.common.dto.ApiResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.server.ResponseStatusException
 
 /**
  * 인증 관련 API를 담당하는 Controller 클래스
  * 토큰 재발급, 로그아웃 기능을 담당
+ * (역할 선택은 OAuth 로그인 시 프론트엔드에서 파라미터로 전달)
  */
 @Tag(name = "Auth", description = "인증 관리 API")
 @RestController
@@ -23,40 +28,50 @@ class AuthController(
 ) {
     
     /**
-     * Access Token 재발급
+     * Access Token과 Refresh Token 재발급
+     * 기존 AccessToken을 Authorization 헤더로 받아 블랙리스트에 추가
      * 
      * @param request Refresh Token 요청 정보
-     * @return 새로운 Access Token 응답
+     * @param httpRequest HTTP 요청 (Authorization 헤더에서 기존 AccessToken 추출용)
+     * @return 새로운 Access Token과 Refresh Token 응답
      */
     @Operation(
-        summary = "Access Token 재발급",
-        description = "Refresh Token을 사용하여 새로운 Access Token을 발급받습니다."
+        summary = "토큰 재발급",
+        description = "Refresh Token을 사용하여 새로운 Access Token과 Refresh Token을 발급받습니다. 기존 AccessToken과 RefreshToken은 무효화되고 블랙리스트에 등록됩니다."
     )
     @PostMapping("/refresh")
     fun refreshToken(
-        @Valid @RequestBody request: RefreshTokenRequest
-    ): ApiResponse<RefreshTokenResponse> {
-        val response = authService.refreshAccessToken(request)
+        @Valid @RequestBody request: RefreshTokenRequest,
+        httpRequest: HttpServletRequest
+    ): ApiResponse<TokenResponse> {
+        val response = authService.refreshTokensWithAccessToken(request.refreshToken, httpRequest)
         return ApiResponse.success(response)
     }
     
     /**
      * 로그아웃
      * 
-     * @param userPrincipal 현재 인증된 사용자 정보
+     * @param user 현재 인증된 사용자 정보
+     * @param request HTTP 요청 (Authorization 헤더에서 토큰 추출용)
      * @return 로그아웃 응답
      */
     @Operation(
         summary = "로그아웃",
-        description = "현재 사용자를 로그아웃하고 Refresh Token을 무효화합니다.",
+        description = "AccessToken을 블랙리스트에 등록하고 모든 RefreshToken을 삭제합니다.",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
     @PostMapping("/logout")
     fun logout(
-        @AuthenticationPrincipal userPrincipal: UserPrincipal
-    ): ApiResponse<LogoutResponse> {
-        val response = authService.logout(userPrincipal.userId)
-        return ApiResponse.success(response)
+        @AuthenticationPrincipal user: UserPrincipal?,
+        request: HttpServletRequest
+    ): ResponseEntity<Void> {
+        if (user == null) {
+            throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 사용자입니다.")
+        }
+        
+        authService.logout(user.userId, request)
+        
+        return ResponseEntity.noContent().build()
     }
 
     /**
@@ -73,58 +88,8 @@ class AuthController(
     @GetMapping("/validate")
     fun validateToken(
         @AuthenticationPrincipal userPrincipal: UserPrincipal
-    ): ApiResponse<Map<String, Any?>> {
-        // 사용자 정보 조회하여 OAuth 이름 포함
-        val user = authService.getUserById(userPrincipal.userId)
-        val response = mapOf(
-            "valid" to true,
-            "userId" to userPrincipal.userId,
-            "email" to userPrincipal.email,
-            "userType" to userPrincipal.userType?.code,
-            "needAdditionalInfo" to user.needAdditionalInfo,
-            "oauthName" to user.oauthName,
-            "authorities" to userPrincipal.authorities.map { it.authority }
-        )
-        return ApiResponse.success(response)
-    }
-
-    /**
-     * 특정 디바이스 로그아웃 (Flutter 앱용)
-     * 
-     * @param userPrincipal 현재 인증된 사용자 정보
-     * @param request 로그아웃할 특정 토큰 정보
-     * @return 로그아웃 응답
-     */
-    @Operation(
-        summary = "특정 디바이스 로그아웃",
-        description = "현재 사용자의 특정 디바이스(RefreshToken)만 로그아웃 처리합니다.",
-        security = [SecurityRequirement(name = "BearerAuth")]
-    )
-    @PostMapping("/logout-device")
-    fun logoutDevice(
-        @AuthenticationPrincipal userPrincipal: UserPrincipal,
-        @Valid @RequestBody request: RefreshTokenRequest
-    ): ApiResponse<LogoutResponse> {
-        val response = authService.logoutDevice(userPrincipal.userId, request.refreshToken)
-        return ApiResponse.success(response)
-    }
-
-    /**
-     * 활성 세션 목록 조회
-     * 
-     * @param userPrincipal 현재 인증된 사용자 정보
-     * @return 활성 세션 목록
-     */
-    @Operation(
-        summary = "활성 세션 목록 조회",
-        description = "현재 사용자의 모든 활성 세션(로그인된 디바이스) 목록을 조회합니다.",
-        security = [SecurityRequirement(name = "BearerAuth")]
-    )
-    @GetMapping("/sessions")
-    fun getActiveSessions(
-        @AuthenticationPrincipal userPrincipal: UserPrincipal
-    ): ApiResponse<List<ActiveSessionResponse>> {
-        val response = authService.getActiveSessions(userPrincipal.userId)
+    ): ApiResponse<TokenValidationResponse> {
+        val response = authService.validateAccessToken(userPrincipal.userId)
         return ApiResponse.success(response)
     }
 } 

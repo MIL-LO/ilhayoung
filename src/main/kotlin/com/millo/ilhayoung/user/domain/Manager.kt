@@ -1,84 +1,101 @@
 package com.millo.ilhayoung.user.domain
 
+import com.millo.ilhayoung.auth.domain.OAuth
 import com.millo.ilhayoung.common.domain.BaseDocument
 import org.springframework.data.mongodb.core.index.Indexed
+import org.springframework.data.mongodb.core.mapping.DBRef
 import org.springframework.data.mongodb.core.mapping.Document
 
 /**
- * 매니저(사업자) 특화 정보를 담는 도메인 클래스
- * User 도메인과 별도로 관리되는 Manager 전용 정보를 포함
+ * 관리자(MANAGER) 정보 도메인
+ * OAuth 정보와 조인하여 사용
  */
 @Document(collection = "managers")
-data class Manager(
+class Manager(
     
     /**
-     * 연결된 사용자 ID
-     * User 도메인의 ID를 참조
+     * 연결된 OAuth 사용자 정보
+     */
+    @DBRef
+    @Indexed(unique = true)
+    var oauth: OAuth,
+    
+    /**
+     * 연결된 사용자 ID (OAuth 도메인 참조)
      */
     @Indexed(unique = true)
-    val userId: String,
+    var userId: String,
+    
+    /**
+     * 사용자 타입 (고정)
+     */
+    var userType: UserType = UserType.MANAGER,
+    
+    /**
+     * 사용자 상태
+     * PENDING: OAuth 로그인만 완료, 회원가입 필요
+     * ACTIVE: 회원가입 완료, 활성 상태
+     * DELETED: 회원 탈퇴, 삭제된 상태
+     */
+    var status: UserStatus = UserStatus.PENDING,
+    
+    /**
+     * 생년월일 (YYYY-MM-DD)
+     */
+    var birthDate: String,
+    
+    /**
+     * 연락처 (010-XXXX-XXXX)
+     */
+    @Indexed(unique = true)
+    var phone: String,
     
     /**
      * 사업지 주소
-     * 사업장이 위치한 실제 주소
      */
-    val businessAddress: String,
+    var businessAddress: String,
     
     /**
-     * 사업자등록번호
-     * 10자리 숫자 (하이픈 포함 또는 제외)
+     * 사업자등록번호 (10자리)
      */
     @Indexed(unique = true)
-    val businessNumber: String,
+    var businessNumber: String,
     
     /**
-     * 업종
-     * 예: 요식업, 카페, 소매업 등
+     * 업종 (예: 요식업, 카페, 게스트 하우스)
      */
-    val businessType: String,
+    var businessType: String
+    
+) : BaseDocument(), User {
+    
+    override fun getEmail(): String = oauth.email
+    
+    override fun getProvider(): String = oauth.provider
+    
+    override fun getProviderId(): String = oauth.providerId
+    
+    override fun getName(): String = oauth.getDisplayName()
+    
+    override fun isActive(): Boolean = status == UserStatus.ACTIVE
+    
+    override fun isPending(): Boolean = status == UserStatus.PENDING
+    
+    override fun isDeleted(): Boolean = status == UserStatus.DELETED
+    
+    override fun completeSignup() {
+        this.status = UserStatus.ACTIVE
+    }
+    
+    override fun delete() {
+        this.status = UserStatus.DELETED
+    }
+    
+    override fun restore() {
+        this.status = UserStatus.ACTIVE
+    }
     
     /**
-     * 사업자등록번호 검증 상태
-     * true: 검증 완료, false: 검증 필요 또는 실패
-     */
-    val isBusinessNumberVerified: Boolean = false,
-    
-    /**
-     * 사업장명
-     * 실제 운영하는 사업장의 이름
-     */
-    val businessName: String? = null,
-    
-    /**
-     * 사업 설명
-     * 사업에 대한 간단한 설명이나 소개
-     */
-    val businessDescription: String? = null,
-    
-    /**
-     * 직원 모집 활성화 여부
-     * true: 직원 모집 중, false: 모집 중단
-     */
-    val isRecruitingActive: Boolean = true,
-    
-    /**
-     * 신뢰도 점수
-     * 1.0 ~ 5.0 점 (기본값: 3.0)
-     */
-    val trustScore: Double = 3.0,
-    
-    /**
-     * 평가 받은 횟수
-     * 신뢰도 점수 계산을 위한 평가 횟수
-     */
-    val reviewCount: Int = 0
-    
-) : BaseDocument() {
-    
-    /**
-     * 포맷팅된 사업자등록번호를 반환하는 메서드
-     * 
-     * @return xxx-xx-xxxxx 형식의 사업자등록번호
+     * 포맷팅된 사업자등록번호 반환 (xxx-xx-xxxxx)
      */
     fun getFormattedBusinessNumber(): String {
         val numbers = businessNumber.replace("-", "")
@@ -90,66 +107,53 @@ data class Manager(
     }
     
     /**
-     * 사업자등록번호 검증을 완료 처리하는 메서드
-     * 
-     * @return 검증 상태가 변경된 Manager 객체
+     * 포맷팅된 연락처 반환 (010-xxxx-xxxx)
      */
-    fun verifyBusinessNumber(): Manager {
-        return this.copy(isBusinessNumberVerified = true)
-    }
-    
-    /**
-     * 신뢰도 점수를 업데이트하는 메서드
-     * 
-     * @param newScore 새로운 평가 점수 (1.0 ~ 5.0)
-     * @return 신뢰도가 업데이트된 Manager 객체
-     */
-    fun updateTrustScore(newScore: Double): Manager {
-        require(newScore in 1.0..5.0) { "신뢰도 점수는 1.0에서 5.0 사이여야 합니다." }
-        
-        val totalScore = (trustScore * reviewCount) + newScore
-        val newReviewCount = reviewCount + 1
-        val newTrustScore = totalScore / newReviewCount
-        
-        return this.copy(
-            trustScore = newTrustScore,
-            reviewCount = newReviewCount
-        )
-    }
-    
-    /**
-     * 직원 모집 상태를 변경하는 메서드
-     * 
-     * @param isActive 모집 활성화 여부
-     * @return 모집 상태가 변경된 Manager 객체
-     */
-    fun updateRecruitingStatus(isActive: Boolean): Manager {
-        return this.copy(isRecruitingActive = isActive)
-    }
-    
-    /**
-     * 신뢰도 등급을 반환하는 메서드
-     * 
-     * @return 신뢰도 등급 문자열
-     */
-    fun getTrustGrade(): String {
-        return when {
-            trustScore >= 4.5 -> "최우수"
-            trustScore >= 4.0 -> "우수"
-            trustScore >= 3.5 -> "보통"
-            trustScore >= 3.0 -> "미흡"
-            else -> "부족"
+    fun getFormattedPhone(): String {
+        val numbers = phone.replace("-", "")
+        return if (numbers.length == 11) {
+            "${numbers.substring(0, 3)}-${numbers.substring(3, 7)}-${numbers.substring(7)}"
+        } else {
+            phone
         }
     }
     
     /**
-     * 사업자 정보가 완전히 등록되었는지 확인하는 메서드
-     * 
-     * @return 모든 필수 정보가 입력되었으면 true
+     * Manager 정보 업데이트
      */
-    fun isFullyRegistered(): Boolean {
-        return businessName != null && 
-               businessDescription != null && 
-               isBusinessNumberVerified
+    fun update(
+        phone: String? = null,
+        businessAddress: String? = null,
+        businessType: String? = null
+    ) {
+        phone?.let { this.phone = it }
+        businessAddress?.let { this.businessAddress = it }
+        businessType?.let { this.businessType = it }
+    }
+    
+    companion object {
+        /**
+         * OAuth와 기본 정보로 Manager 생성 (회원가입 완료)
+         */
+        fun create(
+            oauth: OAuth,
+            birthDate: String,
+            phone: String,
+            businessAddress: String,
+            businessNumber: String,
+            businessType: String
+        ): Manager {
+            return Manager(
+                oauth = oauth,
+                userId = oauth.id!!,
+                userType = UserType.MANAGER,
+                status = UserStatus.ACTIVE,
+                birthDate = birthDate,
+                phone = phone,
+                businessAddress = businessAddress,
+                businessNumber = businessNumber,
+                businessType = businessType
+            )
+        }
     }
 } 
