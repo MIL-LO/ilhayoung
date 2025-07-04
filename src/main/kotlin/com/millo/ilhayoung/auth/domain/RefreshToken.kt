@@ -31,17 +31,6 @@ data class RefreshToken(
     val expiresAt: LocalDateTime,
     
     /**
-     * 토큰 발급 시 사용된 기기/브라우저 정보
-     * User-Agent 등의 정보를 저장하여 보안을 강화
-     */
-    val userAgent: String? = null,
-    
-    /**
-     * 토큰 발급 시 IP 주소
-     */
-    val ipAddress: String? = null,
-    
-    /**
      * 토큰 생성 시간
      */
     val createdAt: LocalDateTime = LocalDateTime.now()
@@ -75,23 +64,17 @@ data class RefreshToken(
          * @param token 토큰 값 (Redis Key로 사용)
          * @param userId 사용자 ID
          * @param expiresAt 만료 시간
-         * @param userAgent User-Agent 정보
-         * @param ipAddress IP 주소
          * @return 새로운 RefreshToken 객체
          */
         fun create(
             token: String,
             userId: String,
-            expiresAt: LocalDateTime,
-            userAgent: String? = null,
-            ipAddress: String? = null
+            expiresAt: LocalDateTime
         ): RefreshToken {
             return RefreshToken(
                 token = token,
                 userId = userId,
-                expiresAt = expiresAt,
-                userAgent = userAgent,
-                ipAddress = ipAddress
+                expiresAt = expiresAt
             )
         }
     }
