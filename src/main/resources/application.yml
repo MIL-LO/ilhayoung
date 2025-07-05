@@ -1,5 +1,11 @@
 server:
   port: 5000
+  forward-headers-strategy: native
+  servlet:
+    session:
+      cookie:
+        secure: true
+        same-site: None
 
 spring:
   application:
