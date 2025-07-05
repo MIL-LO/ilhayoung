@@ -41,9 +41,11 @@ class SecurityConfig(
             // CORS 설정 적용
             .cors { it.configurationSource(corsConfigurationSource()) }
             
-            // 세션 정책: OAuth2 로그인만 세션 사용, 나머지는 JWT
+            // 세션 정책: OAuth2 로그인 과정에서만 임시 세션 사용, JWT 기반 Stateless
             .sessionManagement { 
                 it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                it.maximumSessions(1)
+                it.sessionFixation().migrateSession()
             }
             
             // HTTP 요청에 대한 권한 설정
@@ -104,6 +106,12 @@ class SecurityConfig(
                     .successHandler(oAuth2AuthenticationSuccessHandler)
                     .failureHandler(OAuth2AuthenticationFailureHandler())
             }
+            
+            // Form Login 비활성화 (모바일 앱에서 불필요)
+            .formLogin { it.disable() }
+            
+            // HTTP Basic 인증 비활성화
+            .httpBasic { it.disable() }
             
             // JWT 필터 추가
             .addFilterBefore(

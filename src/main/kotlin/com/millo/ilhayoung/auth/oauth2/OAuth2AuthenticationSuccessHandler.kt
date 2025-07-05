@@ -91,7 +91,10 @@ class OAuth2AuthenticationSuccessHandler(
         val oauth = findOrCreateOAuth(email, provider, providerId, oauthName, selectedRole)
         
         // 회원가입 상태 확인 (role 구분 없이 통합 처리)
-        handleOAuthSuccess(response, oauth)
+        handleOAuthSuccess(request, response, oauth)
+        
+        // 응답 완료 후 더 이상 처리하지 않음
+        return
     }
 
     /**
@@ -139,7 +142,7 @@ class OAuth2AuthenticationSuccessHandler(
      * OAuth 인증 성공 통합 처리
      * Staff와 Manager 구분 없이 회원가입 상태만 확인
      */
-    private fun handleOAuthSuccess(response: HttpServletResponse, oauth: OAuth) {
+    private fun handleOAuthSuccess(request: HttpServletRequest, response: HttpServletResponse, oauth: OAuth) {
         val staffOpt = staffRepository.findByUserId(oauth.id!!)
         val managerOpt = managerRepository.findByUserId(oauth.id!!)
         
@@ -167,7 +170,7 @@ class OAuth2AuthenticationSuccessHandler(
                     accessToken = accessToken,
                     refreshToken = refreshToken
                 )
-                sendResponse(response, responseBody)
+                sendResponse(request, response, responseBody)
             }
             
             // Manager로 이미 회원가입 완료 → Manager 로그인
@@ -193,13 +196,13 @@ class OAuth2AuthenticationSuccessHandler(
                     accessToken = accessToken,
                     refreshToken = refreshToken
                 )
-                sendResponse(response, responseBody)
+                sendResponse(request, response, responseBody)
             }
             
             // 삭제된 계정들 처리
             (staffOpt.isPresent && staffOpt.get().isDeleted()) || 
             (managerOpt.isPresent && managerOpt.get().isDeleted()) -> {
-                handleDeletedUser(response, "삭제된 계정입니다.")
+                handleDeletedUser(request, response, "삭제된 계정입니다.")
             }
             
             // 아직 회원가입하지 않음 → 중립적인 안내 메시지
@@ -216,7 +219,7 @@ class OAuth2AuthenticationSuccessHandler(
                     message = "OAuth 인증이 완료되었습니다. 회원가입을 진행해주세요.",
                     accessToken = accessToken
                 )
-                sendResponse(response, responseBody)
+                sendResponse(request, response, responseBody)
             }
         }
     }
@@ -224,33 +227,79 @@ class OAuth2AuthenticationSuccessHandler(
     /**
      * 삭제된 사용자 처리
      */
-    private fun handleDeletedUser(response: HttpServletResponse, message: String) {
+    private fun handleDeletedUser(request: HttpServletRequest, response: HttpServletResponse, message: String) {
         val responseBody = SimpleOAuthResponse(
             success = false,
             message = message,
             accessToken = ""
         )
-        sendResponse(response, responseBody)
+        sendResponse(request, response, responseBody)
     }
 
     /**
      * 오류 처리
      */
-    private fun handleError(response: HttpServletResponse, message: String) {
+    private fun handleError(request: HttpServletRequest, response: HttpServletResponse, message: String) {
         val responseBody = SimpleOAuthResponse(
             success = false,
             message = message,
             accessToken = ""
         )
-        sendResponse(response, responseBody)
+        sendResponse(request, response, responseBody)
     }
 
     /**
      * 응답 전송 공통 메서드
      */
-    private fun sendResponse(response: HttpServletResponse, responseBody: Any) {
-        response.contentType = "application/json"
-        response.characterEncoding = "UTF-8"
-        response.writer.write(objectMapper.writeValueAsString(responseBody))
+    private fun sendResponse(request: HttpServletRequest, response: HttpServletResponse, responseBody: Any) {
+        // User-Agent 확인하여 모바일 앱인지 브라우저인지 구분
+        val userAgent = request.getHeader("User-Agent") ?: ""
+        val isMobileApp = userAgent.contains("Mobile") || userAgent.contains("Android") || userAgent.contains("iPhone")
+        
+        if (isMobileApp) {
+            // 모바일 앱: JSON 응답
+            response.contentType = "application/json"
+            response.characterEncoding = "UTF-8"
+            response.status = HttpServletResponse.SC_OK
+            response.writer.write(objectMapper.writeValueAsString(responseBody))
+            response.writer.flush()
+        } else {
+            // 브라우저: 임시 HTML 응답 (개발/테스트용)
+            response.contentType = "text/html"
+            response.characterEncoding = "UTF-8"
+            response.status = HttpServletResponse.SC_OK
+            
+            val htmlResponse = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>OAuth2 인증 완료</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 50px; }
+                        .container { max-width: 600px; margin: 0 auto; }
+                        .success { color: #28a745; }
+                        .error { color: #dc3545; }
+                        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>OAuth2 인증 결과</h1>
+                        <div class="success">
+                            <h2>✅ 인증 성공</h2>
+                            <p>OAuth2 인증이 완료되었습니다.</p>
+                        </div>
+                        <h3>응답 데이터:</h3>
+                        <pre>${objectMapper.writeValueAsString(responseBody)}</pre>
+                        <p><strong>참고:</strong> 실제 모바일 앱에서는 이 JSON 데이터를 받아서 처리합니다.</p>
+                    </div>
+                </body>
+                </html>
+            """.trimIndent()
+            
+            response.writer.write(htmlResponse)
+            response.writer.flush()
+        }
     }
 } 
