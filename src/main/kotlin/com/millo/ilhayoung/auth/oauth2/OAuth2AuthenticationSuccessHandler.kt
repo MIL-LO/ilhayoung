@@ -87,6 +87,20 @@ class OAuth2AuthenticationSuccessHandler(
         // 프론트엔드에서 전달한 role 파라미터 추출
         val selectedRole = request.getParameter("role")?.uppercase() ?: "STAFF"
         
+        // 모바일 앱 여부를 세션에 저장 (콜백에서 사용)
+        val userAgent = request.getHeader("User-Agent") ?: ""
+        val isMobileRequest = userAgent.contains("Mobile", ignoreCase = true) || 
+                             userAgent.contains("Android", ignoreCase = true) || 
+                             userAgent.contains("iPhone", ignoreCase = true) ||
+                             userAgent.contains("iPad", ignoreCase = true) ||
+                             userAgent.contains("Flutter", ignoreCase = true) ||
+                             userAgent.contains("WebView", ignoreCase = true) ||
+                             request.getParameter("mobile") == "true"
+        
+        if (isMobileRequest) {
+            request.session.setAttribute("isMobileApp", true)
+        }
+        
         // provider+providerId로 OAuth 조회 또는 생성
         val oauth = findOrCreateOAuth(email, provider, providerId, oauthName, selectedRole)
         
@@ -252,9 +266,31 @@ class OAuth2AuthenticationSuccessHandler(
      * 응답 전송 공통 메서드
      */
     private fun sendResponse(request: HttpServletRequest, response: HttpServletResponse, responseBody: Any) {
-        // User-Agent 확인하여 모바일 앱인지 브라우저인지 구분
+        // User-Agent 및 요청 헤더 확인하여 모바일 앱인지 브라우저인지 구분
         val userAgent = request.getHeader("User-Agent") ?: ""
-        val isMobileApp = userAgent.contains("Mobile") || userAgent.contains("Android") || userAgent.contains("iPhone")
+        val acceptHeader = request.getHeader("Accept") ?: ""
+        val refererHeader = request.getHeader("Referer") ?: ""
+        
+        // 모바일 앱 감지 로직 개선 (세션 정보 우선 사용)
+        val sessionMobileFlag = request.session.getAttribute("isMobileApp") as? Boolean ?: false
+        val isMobileApp = sessionMobileFlag ||
+                         userAgent.contains("Mobile", ignoreCase = true) || 
+                         userAgent.contains("Android", ignoreCase = true) || 
+                         userAgent.contains("iPhone", ignoreCase = true) ||
+                         userAgent.contains("iPad", ignoreCase = true) ||
+                         userAgent.contains("Flutter", ignoreCase = true) ||
+                         userAgent.contains("WebView", ignoreCase = true) ||
+                         acceptHeader.contains("application/json") ||
+                         request.getParameter("format") == "json" ||
+                         request.getParameter("mobile") == "true"
+        
+        // 로깅 추가 (디버깅용)
+        println("=== OAuth2 Response Debug ===")
+        println("User-Agent: $userAgent")
+        println("Accept: $acceptHeader")
+        println("Referer: $refererHeader")
+        println("Is Mobile App: $isMobileApp")
+        println("Response Body: ${objectMapper.writeValueAsString(responseBody)}")
         
         if (isMobileApp) {
             // 모바일 앱: JSON 응답
