@@ -36,6 +36,9 @@ enum class ErrorCode(
     APPLICATION_NOT_FOUND("APPLICATION_NOT_FOUND", "지원서를 찾을 수 없습니다.", 404),
     ALREADY_APPLIED("ALREADY_APPLIED", "이미 지원한 공고입니다.", 409),
     RECRUIT_CLOSED("RECRUIT_CLOSED", "마감된 채용 공고입니다.", 400),
+    RECRUIT_HAS_APPLICATIONS("RECRUIT_HAS_APPLICATIONS", "지원자가 있는 공고는 삭제할 수 없습니다.", 400),
+    ACCESS_DENIED("ACCESS_DENIED", "접근 권한이 없습니다.", 403),
+    TEMPLATE_NOT_FOUND("TEMPLATE_NOT_FOUND", "템플릿을 찾을 수 없습니다.", 404),
     
     // 출근 관련 에러
     ATTENDANCE_NOT_FOUND("ATTENDANCE_NOT_FOUND", "출근 기록을 찾을 수 없습니다.", 404),
