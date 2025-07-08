@@ -1,13 +1,20 @@
 package com.millo.ilhayoung.user.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 
 /**
  * 사업자등록번호 검증 요청 DTO
  */
+@Schema(description = "사업자등록번호 검증 요청", example = """
+{
+  "businessNumber": "1234567890"
+}
+""")
 data class BusinessVerificationRequest(
     @field:NotBlank(message = "사업자등록번호를 입력해주세요.")
+    @Schema(description = "사업자등록번호", example = "1234567890")
     val businessNumber: String = ""
 )
 

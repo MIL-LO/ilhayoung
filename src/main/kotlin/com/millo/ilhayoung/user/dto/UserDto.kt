@@ -8,7 +8,14 @@ import jakarta.validation.constraints.Pattern
 /**
  * STAFF 회원가입 요청 DTO
  */
-@Schema(description = "STAFF 회원가입 요청")
+@Schema(description = "STAFF 회원가입 요청", example = """
+{
+  "birthDate": "1998-07-01",
+  "phone": "010-1234-5678",
+  "address": "제주시 노형동 456-78",
+  "experience": "한식 주점 홀 아르바이트 3개월, 패스트푸드점 카운터 6개월"
+}
+""")
 data class StaffSignupRequest(
     
 
@@ -51,7 +58,15 @@ data class StaffSignupRequest(
 /**
  * MANAGER 회원가입 요청 DTO
  */
-@Schema(description = "MANAGER 회원가입 요청")
+@Schema(description = "MANAGER 회원가입 요청", example = """
+{
+  "birthDate": "1980-02-15",
+  "phone": "010-2222-3333",
+  "businessAddress": "제주시 연동 789-12",
+  "businessNumber": "1234567890",
+  "businessType": "요식업"
+}
+""")
 data class ManagerSignupRequest(
     
 
