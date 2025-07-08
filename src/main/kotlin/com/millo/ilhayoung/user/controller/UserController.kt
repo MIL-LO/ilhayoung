@@ -7,6 +7,7 @@ import com.millo.ilhayoung.common.dto.MessageResponse
 import com.millo.ilhayoung.common.security.PermissionChecker
 import com.millo.ilhayoung.user.dto.*
 import com.millo.ilhayoung.user.service.UserService
+import com.millo.ilhayoung.user.service.BusinessVerificationService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -23,7 +24,8 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/v1/users")
 class UserController(
     private val userService: UserService,
-    private val permissionChecker: PermissionChecker
+    private val permissionChecker: PermissionChecker,
+    private val businessVerificationService: BusinessVerificationService
 ) {
     
     /**
@@ -133,6 +135,25 @@ class UserController(
         
         userService.updateManager(userPrincipal.userId, request)
         return ApiResponse.success(MessageResponse.managerInfoUpdated())
+    }
+    
+    /**
+     * 사업자등록번호 검증
+     * 
+     * @param request 사업자등록번호 검증 요청
+     * @return 검증 결과
+     */
+    @Operation(
+        summary = "사업자등록번호 검증",
+        description = "관리자 회원가입 시 사업자등록번호의 유효성을 검증합니다.",
+        security = [SecurityRequirement(name = "BearerAuth")]
+    )
+    @PostMapping("/verify-business")
+    fun verifyBusinessNumber(
+        @Valid @RequestBody request: BusinessVerificationRequest
+    ): ApiResponse<BusinessVerificationResponse> {
+        val result = businessVerificationService.verifyBusinessNumber(request.businessNumber)
+        return ApiResponse.success(result)
     }
     
     /**
