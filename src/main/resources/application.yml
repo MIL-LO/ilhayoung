@@ -72,6 +72,11 @@ jwt:
   access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_EXPIRED}
   refresh-token-validity-in-seconds: ${JWT_REFRESH_TOKEN_EXPIRED}
 
+nts:
+  api:
+    key: ${NTS_API_KEY}
+    url: ${NTS_API_URL}
+
 logging:
   level:
     org.springframework.security: DEBUG
