@@ -57,7 +57,7 @@ class SecurityConfig(
                         "/login/oauth2/**",           // OAuth2 Login 엔드포인트  
                         "/api/v1/auth/refresh",       // 토큰 재발급
                         
-                        // API 문서 (개발용)
+                        // API 문서
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
                         "/swagger-resources/**",
@@ -65,7 +65,10 @@ class SecurityConfig(
                         
                         // 헬스체크
                         "/health",
-                        "/actuator/**"
+                        "/actuator/**",
+
+                        // 사업자 등록번호 검증
+                        "/api/v1/users/verify-business"
                     ).permitAll()
                     
                     // 회원가입 API (OAuth2 인증 후 접근 가능)
