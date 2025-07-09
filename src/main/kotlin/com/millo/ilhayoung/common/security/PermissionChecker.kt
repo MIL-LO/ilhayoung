@@ -1,11 +1,11 @@
 package com.millo.ilhayoung.common.security
 
+import com.millo.ilhayoung.auth.repository.OAuthRepository
 import com.millo.ilhayoung.common.exception.BusinessException
 import com.millo.ilhayoung.common.exception.ErrorCode
 import com.millo.ilhayoung.user.domain.UserType
-import com.millo.ilhayoung.auth.repository.OAuthRepository
-import com.millo.ilhayoung.user.repository.StaffRepository
 import com.millo.ilhayoung.user.repository.ManagerRepository
+import com.millo.ilhayoung.user.repository.StaffRepository
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 
@@ -33,7 +33,7 @@ class PermissionChecker(
      */
     fun requireStaffPermission() {
         val userId = getCurrentUserId()
-        val staff = staffRepository.findByUserId(userId)
+        val staff = staffRepository.findById(userId)
         
         if (staff.isEmpty || !staff.get().isActive()) {
             throw BusinessException(ErrorCode.FORBIDDEN)
@@ -45,7 +45,7 @@ class PermissionChecker(
      */
     fun requireManagerPermission() {
         val userId = getCurrentUserId()
-        val manager = managerRepository.findByUserId(userId)
+        val manager = managerRepository.findById(userId)
         
         if (manager.isEmpty || !manager.get().isActive()) {
             throw BusinessException(ErrorCode.FORBIDDEN)
@@ -67,8 +67,8 @@ class PermissionChecker(
      */
     fun getCurrentUserType(): UserType? {
         val userId = getCurrentUserId()
-        val staff = staffRepository.findByUserId(userId)
-        val manager = managerRepository.findByUserId(userId)
+        val staff = staffRepository.findById(userId)
+        val manager = managerRepository.findById(userId)
         
         return when {
             staff.isPresent && staff.get().isActive() -> UserType.STAFF
