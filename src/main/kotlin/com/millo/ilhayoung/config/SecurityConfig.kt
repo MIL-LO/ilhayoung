@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 
 /**
  * Spring Security 설정을 담당하는 클래스 (모바일 최적화)
@@ -22,6 +23,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 class SecurityConfig(
     private val jwtTokenProvider: JwtTokenProvider,
     private val customOAuth2UserService: CustomOAuth2UserService,
@@ -41,27 +43,29 @@ class SecurityConfig(
             // CORS 설정 적용
             .cors { it.configurationSource(corsConfigurationSource()) }
             
-            // 세션 정책: OAuth2 로그인 과정에서만 임시 세션 사용, JWT 기반 Stateless
+            // 세션 정책: JWT 기반 Stateless로 변경
             .sessionManagement { 
-                it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                it.maximumSessions(1)
-                it.sessionFixation().migrateSession()
+                it.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             }
             
             // HTTP 요청에 대한 권한 설정
             .authorizeHttpRequests { authz ->
                 authz
+                    // Swagger UI 관련 경로 허용
+                    .requestMatchers(
+                        "/v3/api-docs",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/swagger-resources/**",
+                        "/webjars/**"
+                    ).permitAll()
+                    
                     // 인증 없이 접근 가능한 엔드포인트
                     .requestMatchers(
                         "/oauth2/**",                 // OAuth2 엔드포인트
                         "/login/oauth2/**",           // OAuth2 Login 엔드포인트  
                         "/api/v1/auth/refresh",       // 토큰 재발급
-                        
-                        // API 문서
-                        "/swagger-ui/**",
-                        "/v3/api-docs/**",
-                        "/swagger-resources/**",
-                        "/webjars/**",
                         
                         // 헬스체크
                         "/health",
@@ -149,7 +153,6 @@ class SecurityConfig(
             // 모바일 앱에 노출할 헤더
             exposedHeaders = listOf("Authorization", "Content-Type")
         }
-
         return UrlBasedCorsConfigurationSource().apply {
             registerCorsConfiguration("/**", configuration)
         }
