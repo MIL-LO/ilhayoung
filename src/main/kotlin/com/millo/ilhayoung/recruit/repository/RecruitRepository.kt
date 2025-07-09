@@ -21,6 +21,11 @@ interface RecruitRepository : MongoRepository<Recruit, String> {
     fun findByManagerIdAndStatusNotOrderByCreatedAtDesc(managerId: String, status: RecruitStatus, pageable: Pageable): Page<Recruit>
 
     /**
+     * Manager ID로 특정 상태의 공고 목록 조회
+     */
+    fun findByManagerIdAndStatusIn(managerId: String, statuses: Collection<RecruitStatus>, pageable: Pageable): Page<Recruit>
+
+    /**
      * 활성화된 공고 목록 조회 (상태별 필터)
      */
     fun findByStatusInOrderByCreatedAtDesc(statuses: List<RecruitStatus>, pageable: Pageable): Page<Recruit>
@@ -50,12 +55,10 @@ interface RecruitRepository : MongoRepository<Recruit, String> {
      */
     fun findByJobTypeContainingIgnoreCaseAndStatusIn(jobType: String, statuses: List<RecruitStatus>, pageable: Pageable): Page<Recruit>
 
-
-
     /**
      * 인기 공고 조회 (조회수 높은 순)
      */
-    fun findByStatusInOrderByViewCountDescCreatedAtDesc(statuses: List<RecruitStatus>, pageable: Pageable): Page<Recruit>
+    fun findByStatusInOrderByViewCountDescCreatedAtDesc(statuses: Collection<RecruitStatus>, pageable: Pageable): Page<Recruit>
 
     /**
      * 마감 임박 공고 조회
@@ -66,6 +69,4 @@ interface RecruitRepository : MongoRepository<Recruit, String> {
      * Manager의 공고 수 조회
      */
     fun countByManagerIdAndStatus(managerId: String, status: RecruitStatus): Long
-
-
 }

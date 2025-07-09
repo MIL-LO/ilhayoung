@@ -2,15 +2,17 @@ package com.millo.ilhayoung.recruit.service
 
 import com.millo.ilhayoung.common.exception.BusinessException
 import com.millo.ilhayoung.common.exception.ErrorCode
-import com.millo.ilhayoung.recruit.domain.*
+import com.millo.ilhayoung.recruit.domain.ApplicationStatus
+import com.millo.ilhayoung.recruit.domain.Recruit
+import com.millo.ilhayoung.recruit.domain.RecruitStatus
 import com.millo.ilhayoung.recruit.dto.*
 import com.millo.ilhayoung.recruit.repository.ApplicationRepository
 import com.millo.ilhayoung.recruit.repository.RecruitRepository
-import com.millo.ilhayoung.user.domain.Manager
 import com.millo.ilhayoung.user.repository.ManagerRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -28,10 +30,9 @@ class RecruitService(
     /**
      * 채용공고 등록
      */
-    fun createRecruit(managerId: String, request: CreateRecruitRequest): RecruitResponse {
-        // Manager 존재 확인
-        val manager = managerRepository.findById(managerId)
-            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+    fun createRecruit(userId: String, request: CreateRecruitRequest): RecruitResponse {
+        // userId는 이미 Manager의 _id임
+        val managerId = userId
 
         val recruit = Recruit(
             title = request.title,
@@ -45,7 +46,7 @@ class RecruitService(
             images = request.images,
             deadline = request.deadline,
             paymentDate = request.paymentDate,
-            managerId = managerId,
+            managerId = managerId, // Manager의 _id를 사용
             companyName = request.companyName,
             companyAddress = request.companyAddress,
             companyContact = request.companyContact,
@@ -104,30 +105,43 @@ class RecruitService(
 
         // 조회수 증가
         val updatedRecruit = recruit.copy(viewCount = recruit.viewCount + 1)
-        recruitRepository.save(updatedRecruit)
+        val savedRecruit = recruitRepository.save(updatedRecruit)
 
-        return RecruitResponse.from(recruit)
+        return RecruitResponse.from(savedRecruit)
     }
 
     /**
      * Manager의 채용공고 목록 조회
      */
     @Transactional(readOnly = true)
-    fun getMyRecruits(managerId: String, pageable: Pageable): Page<RecruitSummaryResponse> {
-        val recruits = recruitRepository.findByManagerIdAndStatusNotOrderByCreatedAtDesc(
-            managerId, 
-            RecruitStatus.CLOSED, 
-            pageable
+    fun getMyRecruits(userId: String, pageable: Pageable): Page<RecruitSummaryResponse> {
+        // userId는 이미 Manager의 _id임
+        val managerId = userId
+
+        // 정렬 순서 설정 (생성일 기준 내림차순)
+        val pageRequest = PageRequest.of(
+            pageable.pageNumber,
+            pageable.pageSize,
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+        )
+
+        // Manager의 _id로 채용공고 조회
+        val recruits = recruitRepository.findByManagerIdAndStatusIn(
+            managerId,
+            listOf(RecruitStatus.ACTIVE),
+            pageRequest
         )
 
         return recruits.map { recruit ->
-            // 각 공고의 지원자 수 업데이트
-            val recruitId = recruit.id ?: ""
-            val applicationCount = if (recruitId.isNotEmpty()) {
-                applicationRepository.countByRecruitId(recruitId).toInt()
-            } else 0
-            val updatedRecruit = recruit.copy(applicationCount = applicationCount)
-            RecruitSummaryResponse.from(updatedRecruit)
+            try {
+                // 각 공고의 지원자 수 업데이트
+                val applicationCount = applicationRepository.countByRecruitId(recruit.id.orEmpty()).toInt()
+                val updatedRecruit = recruit.copy(applicationCount = applicationCount)
+                RecruitSummaryResponse.from(updatedRecruit)
+            } catch (e: Exception) {
+                // 에러 로깅 및 기본값 반환
+                RecruitSummaryResponse.from(recruit)
+            }
         }
     }
 
@@ -208,9 +222,9 @@ class RecruitService(
      */
     @Transactional(readOnly = true)
     fun getFeaturedRecruits(pageable: Pageable): Page<RecruitSummaryResponse> {
-        val activeStatuses = listOf(RecruitStatus.ACTIVE)
+        val activeStatuses = listOf<RecruitStatus>(RecruitStatus.ACTIVE)
         val recruits = recruitRepository.findByStatusInOrderByViewCountDescCreatedAtDesc(activeStatuses, pageable)
-        return recruits.map { RecruitSummaryResponse.from(it) }
+        return recruits.map { recruit -> RecruitSummaryResponse.from(recruit) }
     }
 
     /**
@@ -218,38 +232,61 @@ class RecruitService(
      */
     @Transactional(readOnly = true)
     fun getApplicationSummary(managerId: String): List<ApplicationSummaryResponse> {
-        // Manager의 모든 공고 조회
-        val allRecruits = recruitRepository.findByManagerIdAndStatusNotOrderByCreatedAtDesc(
-            managerId, 
-            RecruitStatus.CLOSED, 
+        val pageSize = 100 // 한 번에 가져올 데이터 수 제한
+        var currentPage = 0
+        val result = mutableListOf<ApplicationSummaryResponse>()
+        
+        while (true) {
+            val pageable = PageRequest.of(currentPage, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"))
+            val recruitsPage = recruitRepository.findByManagerIdAndStatusNotOrderByCreatedAtDesc(
+                managerId,
+                RecruitStatus.CLOSED,
+                pageable
+            )
+            
+            val pageResult = recruitsPage.content.map { recruit ->
+                val recruitId = recruit.id ?: throw BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "채용공고 ID가 없습니다.")
+                
+                val totalApplications = applicationRepository.countByRecruitId(recruitId).toInt()
+                val reviewingCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.REVIEWING).toInt()
+                val interviewCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.INTERVIEW).toInt()
+                val hiredCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.HIRED).toInt()
+
+                ApplicationSummaryResponse(
+                    recruitId = recruitId,
+                    recruitTitle = recruit.title,
+                    totalApplications = totalApplications,
+                    reviewingCount = reviewingCount,
+                    interviewCount = interviewCount,
+                    hiredCount = hiredCount,
+                    createdAt = recruit.createdAt ?: throw BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "생성일자가 없습니다."),
+                    deadline = recruit.deadline
+                )
+            }
+            
+            result.addAll(pageResult)
+            
+            if (!recruitsPage.hasNext()) break
+            currentPage++
+        }
+        
+        return result
+    }
+
+    /**
+     * Manager의 채용공고 managerId 수정
+     */
+    @Transactional
+    fun updateManagerId(oldManagerId: String, newManagerId: String) {
+        val recruits = recruitRepository.findByManagerIdAndStatusNotOrderByCreatedAtDesc(
+            oldManagerId,
+            RecruitStatus.CLOSED,
             PageRequest.of(0, 1000)
         ).content
 
-        return allRecruits.map { recruit ->
-            val recruitId = recruit.id ?: ""
-            val totalApplications = if (recruitId.isNotEmpty()) {
-                applicationRepository.countByRecruitId(recruitId).toInt()
-            } else 0
-            val reviewingCount = if (recruitId.isNotEmpty()) {
-                applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.REVIEWING).toInt()
-            } else 0
-            val interviewCount = if (recruitId.isNotEmpty()) {
-                applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.INTERVIEW).toInt()
-            } else 0
-            val hiredCount = if (recruitId.isNotEmpty()) {
-                applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.HIRED).toInt()
-            } else 0
-
-            ApplicationSummaryResponse(
-                recruitId = recruitId,
-                recruitTitle = recruit.title,
-                totalApplications = totalApplications,
-                reviewingCount = reviewingCount,
-                interviewCount = interviewCount,
-                hiredCount = hiredCount,
-                createdAt = recruit.createdAt!!,
-                deadline = recruit.deadline
-            )
+        recruits.forEach { recruit ->
+            val updatedRecruit = recruit.copy(managerId = newManagerId)
+            recruitRepository.save(updatedRecruit)
         }
     }
 } 
