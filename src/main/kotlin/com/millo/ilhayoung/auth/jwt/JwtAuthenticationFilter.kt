@@ -4,19 +4,18 @@ import com.millo.ilhayoung.common.exception.BusinessException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.util.StringUtils
 import org.springframework.web.filter.OncePerRequestFilter
 
-/**
- * JWT 토큰을 검증하는 인증 필터
- * 요청의 Authorization 헤더에서 JWT 토큰을 추출하고 검증한다.
- */
 @Component
 class JwtAuthenticationFilter(
     private val jwtTokenProvider: JwtTokenProvider
 ) : OncePerRequestFilter() {
+
+    private val log = LoggerFactory.getLogger(javaClass)
 
     companion object {
         private const val AUTHORIZATION_HEADER = "Authorization"
@@ -24,85 +23,82 @@ class JwtAuthenticationFilter(
     }
 
     /**
-     * 필터 실행 메서드
-     * Authorization 헤더에서 JWT 토큰을 추출하고 검증하여 Security Context에 인증 정보를 설정
+     * JWT 토큰 검증 및 인증 처리
      */
-    override fun doFilterInternal(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        filterChain: FilterChain
-    ) {
-        try {
-            // 요청에서 JWT 토큰 추출
-            val token = resolveToken(request)
-            
-            // 토큰이 존재하는 경우
-            if (token != null) {
-                // 토큰 유효성 검증 (블랙리스트 체크 포함)
-                if (jwtTokenProvider.validateToken(token)) {
-                    // Access Token인지 확인
-                    if (jwtTokenProvider.isAccessToken(token)) {
-                        // 토큰에서 인증 정보 추출하여 Security Context에 설정
-                        val authentication = jwtTokenProvider.getAuthentication(token)
-                        SecurityContextHolder.getContext().authentication = authentication
-                    } else {
-                        // Refresh Token으로 요청한 경우 (잘못된 요청)
-                        logger.warn("Access Token이 아닌 Refresh Token으로 요청: ${request.requestURI}")
-                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token type")
-                        return
-                    }
-                } else {
-                    // 토큰이 유효하지 않거나 블랙리스트된 경우
-                    logger.warn("Invalid or blacklisted token: ${request.requestURI}")
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or blacklisted token")
-                    return
-                }
-            }
-        } catch (e: Exception) {
-            // JWT 토큰 처리 중 예외 발생 시 로그 기록
-            logger.error("JWT 토큰 처리 중 오류 발생: ${e.message}")
-            SecurityContextHolder.clearContext()
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token processing error")
+    override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
+        val path = request.servletPath
+        
+        // 필터 적용 여부 로깅
+        log.debug("Processing request: ${request.method} $path")
+        
+        // 이미 인증이 완료된 경우 다시 처리하지 않음
+        if (SecurityContextHolder.getContext().authentication != null) {
+            log.debug("Authentication already exists in SecurityContext")
+            filterChain.doFilter(request, response)
             return
         }
-
-        // 다음 필터로 요청 전달
-        filterChain.doFilter(request, response)
-    }
-
-    /**
-     * 요청에서 JWT 토큰을 추출하는 메서드
-     * Authorization 헤더에서 "Bearer " 접두사를 제거하고 토큰만 반환한다.
-     * 
-     * @param request HTTP 요청
-     * @return JWT 토큰 문자열, 없으면 null
-     */
-    private fun resolveToken(request: HttpServletRequest): String? {
-        val bearerToken = request.getHeader(AUTHORIZATION_HEADER)
         
-        return if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
-            bearerToken.substring(BEARER_PREFIX.length)
-        } else {
-            null
+        // Authorization 헤더에서 토큰 추출
+        val authHeader = request.getHeader("Authorization")
+        log.debug("Authorization header: $authHeader")
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response)
+            return
         }
+        
+        val token = authHeader.substring(7)
+        log.debug("Extracted token: $token")
+        
+        try {
+            if (jwtTokenProvider.validateToken(token)) {
+                val authentication = jwtTokenProvider.getAuthentication(token)
+                
+                // 인증 정보 설정 로깅
+                log.debug("Setting authentication: $authentication")
+                
+                SecurityContextHolder.getContext().authentication = authentication
+                
+                // SecurityContext에 저장된 인증 정보 로깅
+                log.debug("Authentication set in SecurityContext: ${SecurityContextHolder.getContext().authentication}")
+            }
+        } catch (e: Exception) {
+            log.error("JWT token validation failed", e)
+        }
+        
+        // 필터 체인 진행 로깅
+        log.debug("Proceeding with filter chain")
+        filterChain.doFilter(request, response)
+        
+        // 필터 체인 완료 로깅
+        log.debug("Filter chain completed")
+    }
+
+    private fun extractToken(request: HttpServletRequest): String? {
+        val bearerToken = request.getHeader(AUTHORIZATION_HEADER)
+        log.debug("Authorization header: {}", bearerToken)
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
+            return bearerToken.substring(BEARER_PREFIX.length)
+        }
+        return null
     }
 
     /**
-     * 특정 요청에 대해 필터를 적용하지 않을지 결정하는 메서드
-     * 현재는 모든 요청에 대해 필터를 적용
-     * 
-     * @param request HTTP 요청
-     * @return 필터를 건너뛸지 여부 (현재는 항상 false)
+     * 필터 적용 여부 확인
      */
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
-        // 특정 경로에 대해 JWT 필터를 건너뛰기
-        // "/api/v1/oauth/**" 경로는 JWT 검증이 불필요
-        val path = request.requestURI
+        val path = request.servletPath
         
-        return path.startsWith("/swagger-ui") ||
+        // 인증이 필요없는 경로는 필터 적용하지 않음
+        return path.startsWith("/oauth2") ||
+               path.startsWith("/login/oauth2") ||
                path.startsWith("/v3/api-docs") ||
+               path.startsWith("/swagger-ui") ||
                path.startsWith("/swagger-resources") ||
-               path == "/health" ||
-               path.startsWith("/actuator")
+               path.startsWith("/webjars") ||
+               path.startsWith("/health") ||
+               path.startsWith("/actuator") ||
+               path == "/api/v1/auth/refresh" ||
+               path == "/api/v1/users/verify-business"
     }
 } 

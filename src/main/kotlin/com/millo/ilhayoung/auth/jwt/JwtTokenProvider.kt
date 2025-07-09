@@ -82,14 +82,15 @@ class JwtTokenProvider(
         val claims = parseClaims(token)
         val userId = claims.subject
         val email = claims["email"] as? String
+        val userTypeCode = claims["userType"] as? String
+        val userType = userTypeCode?.let { com.millo.ilhayoung.user.domain.UserType.fromCode(it) }
 
-        // JWT에 권한 정보 없음, 실시간 체크
-        val authorities = listOf<SimpleGrantedAuthority>()
+        val authorities = userType?.let { listOf(SimpleGrantedAuthority("ROLE_${it.code}")) } ?: emptyList()
 
         val principal = UserPrincipal(
             userId = userId,
             email = email ?: "",
-            userType = null // JWT에서 userType 제거
+            userType = userType
         )
 
         return UsernamePasswordAuthenticationToken(principal, token, authorities)
