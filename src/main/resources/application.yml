@@ -57,13 +57,22 @@ spring:
 
 springdoc:
   swagger-ui:
-    path: /ilhayoung-api
+    path: /swagger-ui.html
     operations-sorter: method
+    tags-sorter: alpha
     display-request-duration: true
     persist-authorization: true
+    disable-swagger-default-url: true
+    syntax-highlight:
+      activated: true
+    try-it-out-enabled: true
+    filter: true
   api-docs:
     path: /v3/api-docs
+  show-actuator: false
   default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  paths-to-match: /api/**
 
 swagger:
   servers:
@@ -85,5 +94,8 @@ nts:
 
 logging:
   level:
+    root: INFO
+    com.millo.ilhayoung: DEBUG
+    com.millo.ilhayoung.auth.jwt: TRACE
     org.springframework.security: DEBUG
     org.springframework.web: DEBUG
