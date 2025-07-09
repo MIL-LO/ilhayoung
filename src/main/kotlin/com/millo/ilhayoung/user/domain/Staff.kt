@@ -1,10 +1,11 @@
 package com.millo.ilhayoung.user.domain
 
 import com.millo.ilhayoung.auth.domain.OAuth
-import com.millo.ilhayoung.common.domain.BaseDocument
+import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.DBRef
 import org.springframework.data.mongodb.core.mapping.Document
+import java.time.LocalDateTime
 
 /**
  * 직원(STAFF) 정보 도메인
@@ -59,9 +60,16 @@ class Staff(
      * 경력 또는 관련 경험
      * 예: "한식 주점 홀 아르바이트 3개월"
      */
-    var experience: String
+    var experience: String,
+
+    @Id
+    var id: String? = null,
     
-) : BaseDocument(), User {
+    var createdAt: LocalDateTime = LocalDateTime.now(),
+    
+    var updatedAt: LocalDateTime = LocalDateTime.now()
+    
+) : User {
     
     override fun getEmail(): String = oauth.email
     
@@ -79,14 +87,17 @@ class Staff(
     
     override fun completeSignup() {
         this.status = UserStatus.ACTIVE
+        this.updatedAt = LocalDateTime.now()
     }
     
     override fun delete() {
         this.status = UserStatus.DELETED
+        this.updatedAt = LocalDateTime.now()
     }
     
     override fun restore() {
         this.status = UserStatus.ACTIVE
+        this.updatedAt = LocalDateTime.now()
     }
     
     /**
@@ -123,6 +134,7 @@ class Staff(
         phone?.let { this.phone = it }
         address?.let { this.address = it }
         experience?.let { this.experience = it }
+        this.updatedAt = LocalDateTime.now()
     }
     
     companion object {

@@ -143,9 +143,9 @@ class Manager(
             businessNumber: String,
             businessType: String
         ): Manager {
-            return Manager(
+            val manager = Manager(
                 oauth = oauth,
-                userId = oauth.id!!,  // OAuth의 id를 userId로 사용
+                userId = "",  // 임시 값으로 설정
                 userType = UserType.MANAGER,
                 status = UserStatus.ACTIVE,
                 birthDate = birthDate,
@@ -154,6 +154,9 @@ class Manager(
                 businessNumber = businessNumber,
                 businessType = businessType
             )
+            // MongoDB에 저장 후 생성된 id를 userId로 설정
+            manager.id?.let { manager.userId = it }
+            return manager
         }
     }
 } 
