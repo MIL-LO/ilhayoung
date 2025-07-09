@@ -1,10 +1,11 @@
 package com.millo.ilhayoung.recruit.domain
 
-import com.millo.ilhayoung.common.domain.BaseDocument
+import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.index.CompoundIndex
 import org.springframework.data.mongodb.core.index.CompoundIndexes
 import org.springframework.data.mongodb.core.mapping.Document
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 /**
  * 지원 도메인
@@ -26,5 +27,11 @@ data class Application(
     val address: String,                  // 주소
     val experience: String,               // 경력사항
     val climateScore: Int,               // 기후점수
-    val status: ApplicationStatus = ApplicationStatus.REVIEWING // 지원 상태
-) : BaseDocument() 
+    val status: ApplicationStatus = ApplicationStatus.REVIEWING, // 지원 상태
+    
+    @Id
+    val id: String? = null,
+    
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val updatedAt: LocalDateTime = LocalDateTime.now()
+) 

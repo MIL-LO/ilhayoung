@@ -1,6 +1,6 @@
 package com.millo.ilhayoung.recruit.domain
 
-import com.millo.ilhayoung.common.domain.BaseDocument
+import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Version
 import org.springframework.data.mongodb.core.mapping.Document
 import java.time.LocalDateTime
@@ -29,6 +29,13 @@ data class Recruit(
     val status: RecruitStatus = RecruitStatus.ACTIVE, // 공고 상태
     val applicationCount: Long = 0L,      // 지원자 수
     val viewCount: Long = 0,              // 조회수
+    
     @Version
-    val version: Long = 0                 // 버전 관리를 위한 필드
-) : BaseDocument() 
+    val version: Long = 0,               // 버전 관리를 위한 필드
+    
+    @Id
+    val id: String? = null,
+    
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val updatedAt: LocalDateTime = LocalDateTime.now()
+) 
