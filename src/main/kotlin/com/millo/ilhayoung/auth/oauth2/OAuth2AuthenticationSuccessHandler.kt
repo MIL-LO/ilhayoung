@@ -163,17 +163,20 @@ class OAuth2AuthenticationSuccessHandler(
         when {
             // Staff로 이미 회원가입 완료 → Staff 로그인
             staffOpt.isPresent && staffOpt.get().isActive() -> {
+                val staff = staffOpt.get()
+                val staffId = staff.id ?: throw IllegalStateException("Staff ID not found")
+                
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = oauth.id!!,
+                    userId = staffId, // Staff의 MongoDB _id 사용
                     userType = "STAFF",
                     status = "ACTIVE",
                     email = oauth.email
                 )
                 
-                val refreshToken = jwtTokenProvider.createRefreshToken(oauth.id!!)
+                val refreshToken = jwtTokenProvider.createRefreshToken(staffId) // Staff의 MongoDB _id 사용
                 val refreshTokenEntity = RefreshToken.create(
                     token = refreshToken,
-                    userId = oauth.id!!,
+                    userId = staffId, // Staff의 MongoDB _id 사용
                     expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
                 )
                 refreshTokenRepository.save(refreshTokenEntity)
@@ -189,17 +192,20 @@ class OAuth2AuthenticationSuccessHandler(
             
             // Manager로 이미 회원가입 완료 → Manager 로그인
             managerOpt.isPresent && managerOpt.get().isActive() -> {
+                val manager = managerOpt.get()
+                val managerId = manager.id ?: throw IllegalStateException("Manager ID not found")
+                
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = oauth.id!!,
+                    userId = managerId, // Manager의 MongoDB _id 사용
                     userType = "MANAGER",
                     status = "ACTIVE",
                     email = oauth.email
                 )
                 
-                val refreshToken = jwtTokenProvider.createRefreshToken(oauth.id!!)
+                val refreshToken = jwtTokenProvider.createRefreshToken(managerId) // Manager의 MongoDB _id 사용
                 val refreshTokenEntity = RefreshToken.create(
                     token = refreshToken,
-                    userId = oauth.id!!,
+                    userId = managerId, // Manager의 MongoDB _id 사용
                     expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
                 )
                 refreshTokenRepository.save(refreshTokenEntity)
@@ -222,7 +228,7 @@ class OAuth2AuthenticationSuccessHandler(
             // 아직 회원가입하지 않음 → 중립적인 안내 메시지
             else -> {
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = oauth.id!!,
+                    userId = oauth.id!!, // 회원가입 전이므로 OAuth의 _id 사용
                     userType = "PENDING", // OAuth 인증만 완료된 상태
                     status = "PENDING",
                     email = oauth.email
