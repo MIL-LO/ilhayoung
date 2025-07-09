@@ -18,23 +18,20 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
-/**
- * 채용공고 템플릿 컨트롤러
- */
 @Tag(name = "채용공고 템플릿 API", description = "채용공고 템플릿 관련 API")
 @RestController
 @RequestMapping("/api/v1/recruits/templates")
+@PreAuthorize("hasRole('MANAGER')")
+@SecurityRequirement(name = "BearerAuth")
 class RecruitTemplateController(
     private val templateService: RecruitTemplateService
 ) {
 
     @Operation(
         summary = "템플릿 생성",
-        description = "Manager가 새로운 채용공고 템플릿을 생성합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "Manager가 새로운 채용공고 템플릿을 생성합니다."
     )
     @PostMapping
-    @PreAuthorize("hasRole('MANAGER')")
     fun createTemplate(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Valid @RequestBody request: CreateTemplateRequest
@@ -46,11 +43,9 @@ class RecruitTemplateController(
 
     @Operation(
         summary = "내 템플릿 목록 조회",
-        description = "Manager가 자신의 템플릿 목록을 조회합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "Manager가 자신의 템플릿 목록을 조회합니다."
     )
     @GetMapping
-    @PreAuthorize("hasRole('MANAGER')")
     fun getMyTemplates(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") page: Int,
@@ -63,11 +58,9 @@ class RecruitTemplateController(
 
     @Operation(
         summary = "내 모든 템플릿 조회",
-        description = "Manager가 자신의 모든 템플릿을 조회합니다. (페이징 없음)",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "Manager가 자신의 모든 템플릿을 조회합니다. (페이징 없음)"
     )
     @GetMapping("/all")
-    @PreAuthorize("hasRole('MANAGER')")
     fun getAllMyTemplates(
         @AuthenticationPrincipal userPrincipal: UserPrincipal
     ): ResponseEntity<ApiResponse<List<TemplateResponse>>> {
@@ -77,11 +70,9 @@ class RecruitTemplateController(
 
     @Operation(
         summary = "템플릿 상세 조회",
-        description = "특정 템플릿의 상세 정보를 조회합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "특정 템플릿의 상세 정보를 조회합니다."
     )
     @GetMapping("/{templateId}")
-    @PreAuthorize("hasRole('MANAGER')")
     fun getTemplate(
         @Parameter(description = "템플릿 ID") @PathVariable templateId: String,
         @AuthenticationPrincipal userPrincipal: UserPrincipal
@@ -92,11 +83,9 @@ class RecruitTemplateController(
 
     @Operation(
         summary = "템플릿 수정",
-        description = "템플릿을 수정합니다. 템플릿 작성자만 수정 가능합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "템플릿을 수정합니다. 템플릿 작성자만 수정 가능합니다."
     )
     @PutMapping("/{templateId}")
-    @PreAuthorize("hasRole('MANAGER')")
     fun updateTemplate(
         @Parameter(description = "템플릿 ID") @PathVariable templateId: String,
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
@@ -108,11 +97,9 @@ class RecruitTemplateController(
 
     @Operation(
         summary = "템플릿 삭제",
-        description = "템플릿을 삭제합니다. 템플릿 작성자만 삭제 가능합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "템플릿을 삭제합니다. 템플릿 작성자만 삭제 가능합니다."
     )
     @DeleteMapping("/{templateId}")
-    @PreAuthorize("hasRole('MANAGER')")
     fun deleteTemplate(
         @Parameter(description = "템플릿 ID") @PathVariable templateId: String,
         @AuthenticationPrincipal userPrincipal: UserPrincipal
@@ -123,11 +110,9 @@ class RecruitTemplateController(
 
     @Operation(
         summary = "템플릿 이름으로 검색",
-        description = "템플릿 이름으로 검색합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "템플릿 이름으로 검색합니다."
     )
     @GetMapping("/search")
-    @PreAuthorize("hasRole('MANAGER')")
     fun searchTemplatesByName(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Parameter(description = "검색할 템플릿 이름") @RequestParam name: String

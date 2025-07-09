@@ -24,14 +24,14 @@ import org.springframework.web.bind.annotation.*
 @Tag(name = "지원 API", description = "채용공고 지원 관련 API")
 @RestController
 @RequestMapping("/api/v1")
+@SecurityRequirement(name = "BearerAuth")
 class ApplicationController(
     private val applicationService: ApplicationService
 ) {
 
     @Operation(
         summary = "채용공고 지원",
-        description = "Staff가 특정 채용공고에 지원합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "Staff가 특정 채용공고에 지원합니다."
     )
     @PostMapping("/recruits/{recruitId}/applications")
     @PreAuthorize("hasRole('STAFF')")
