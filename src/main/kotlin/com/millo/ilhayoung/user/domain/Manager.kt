@@ -145,7 +145,7 @@ class Manager(
         ): Manager {
             return Manager(
                 oauth = oauth,
-                userId = oauth.id!!,
+                userId = oauth.id!!,  // OAuth의 id를 userId로 사용
                 userType = UserType.MANAGER,
                 status = UserStatus.ACTIVE,
                 birthDate = birthDate,
