@@ -273,20 +273,4 @@ class RecruitService(
         return result
     }
 
-    /**
-     * Manager의 채용공고 managerId 수정
-     */
-    @Transactional
-    fun updateManagerId(oldManagerId: String, newManagerId: String) {
-        val recruits = recruitRepository.findByManagerIdAndStatusNotOrderByCreatedAtDesc(
-            oldManagerId,
-            RecruitStatus.CLOSED,
-            PageRequest.of(0, 1000)
-        ).content
-
-        recruits.forEach { recruit ->
-            val updatedRecruit = recruit.copy(managerId = newManagerId)
-            recruitRepository.save(updatedRecruit)
-        }
-    }
 } 

@@ -24,14 +24,14 @@ import org.springframework.web.bind.annotation.*
 @Tag(name = "채용공고 API", description = "채용공고 관련 API")
 @RestController
 @RequestMapping("/api/v1/recruits")
+@SecurityRequirement(name = "BearerAuth")
 class RecruitController(
     private val recruitService: RecruitService
 ) {
 
     @Operation(
         summary = "채용공고 등록",
-        description = "Manager가 새로운 채용공고를 등록합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
+        description = "Manager가 새로운 채용공고를 등록합니다."
     )
     @PostMapping
     @PreAuthorize("hasRole('MANAGER')")
@@ -93,7 +93,6 @@ class RecruitController(
     @Operation(
         summary = "내가 작성한 채용공고 목록 조회",
         description = "로그인한 Manager가 작성한 채용공고 목록을 조회합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
     )
     @GetMapping("/my")
     @PreAuthorize("hasRole('MANAGER')")
@@ -110,7 +109,6 @@ class RecruitController(
     @Operation(
         summary = "채용공고 수정",
         description = "채용공고를 수정합니다. 작성자만 수정 가능합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
     )
     @PutMapping("/{recruitId}")
     @PreAuthorize("hasRole('MANAGER')")
@@ -126,7 +124,6 @@ class RecruitController(
     @Operation(
         summary = "채용공고 상태 변경",
         description = "채용공고의 상태를 변경합니다. 작성자만 변경 가능합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
     )
     @PatchMapping("/{recruitId}/status")
     @PreAuthorize("hasRole('MANAGER')")
@@ -142,7 +139,6 @@ class RecruitController(
     @Operation(
         summary = "채용공고 삭제",
         description = "채용공고를 삭제합니다. 작성자만 삭제 가능하며, 지원자가 있는 경우 삭제할 수 없습니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
     )
     @DeleteMapping("/{recruitId}")
     @PreAuthorize("hasRole('MANAGER')")
@@ -171,7 +167,6 @@ class RecruitController(
     @Operation(
         summary = "지원 현황 요약 조회",
         description = "Manager의 모든 채용공고에 대한 지원 현황을 요약하여 조회합니다.",
-        security = [SecurityRequirement(name = "bearerAuth")]
     )
     @GetMapping("/applications/summary")
     @PreAuthorize("hasRole('MANAGER')")
