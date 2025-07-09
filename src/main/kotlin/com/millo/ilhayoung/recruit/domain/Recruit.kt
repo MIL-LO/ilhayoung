@@ -1,6 +1,7 @@
 package com.millo.ilhayoung.recruit.domain
 
 import com.millo.ilhayoung.common.domain.BaseDocument
+import org.springframework.data.annotation.Version
 import org.springframework.data.mongodb.core.mapping.Document
 import java.time.LocalDateTime
 
@@ -27,5 +28,7 @@ data class Recruit(
     val representativeName: String,       // 대표자 이름
     val status: RecruitStatus = RecruitStatus.ACTIVE, // 공고 상태
     val applicationCount: Int = 0,        // 지원자 수
-    val viewCount: Long = 0               // 조회수
+    val viewCount: Long = 0,              // 조회수
+    @Version
+    val version: Long = 0                 // 버전 관리를 위한 필드
 ) : BaseDocument() 
