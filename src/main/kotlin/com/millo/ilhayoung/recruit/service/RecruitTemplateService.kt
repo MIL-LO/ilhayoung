@@ -27,7 +27,7 @@ class RecruitTemplateService(
      */
     fun createTemplate(managerId: String, request: CreateTemplateRequest): TemplateResponse {
         // Manager 존재 확인
-        val manager = managerRepository.findById(managerId)
+        val manager = managerRepository.findByUserId(managerId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 
         val template = RecruitTemplate(
