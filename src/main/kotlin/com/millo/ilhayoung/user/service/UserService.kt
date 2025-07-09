@@ -14,7 +14,7 @@ import com.millo.ilhayoung.user.repository.StaffRepository
 import com.millo.ilhayoung.auth.repository.OAuthRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 
 /**
@@ -41,17 +41,12 @@ class UserService(
     
     /**
      * STAFF 회원가입 처리
-     * 
-     * @param userId 사용자 ID
-     * @param request STAFF 회원가입 요청 정보
-     * @return 새로운 JWT 토큰이 포함된 회원가입 완료 응답
-     * @throws BusinessException 이미 회원가입된 경우, 전화번호 중복 등
      */
     fun signupStaff(userId: String, request: StaffSignupRequest): SignupCompleteResponse {
         val user = validateAndGetOAuthUser(userId)
         
         // 이미 STAFF로 회원가입이 완료된 경우
-        if (staffRepository.existsByUserId(userId)) {
+        if (staffRepository.findById(userId).isPresent) {
             throw BusinessException(ErrorCode.USER_ALREADY_EXISTS, "이미 STAFF로 회원가입이 완료된 사용자입니다.")
         }
         
@@ -72,15 +67,19 @@ class UserService(
         
         // JWT 토큰 발급 (userType, status 포함)
         val accessToken = jwtTokenProvider.createAccessToken(
-            userId = savedStaff.userId,
+            userId = savedStaff.id!!,
             userType = savedStaff.userType.code,
             status = savedStaff.status.code,
-            email = savedStaff.getEmail()
+            email = savedStaff.oauth.email
         )
         
         // Refresh Token 생성 및 저장
-        val refreshToken = jwtTokenProvider.createRefreshToken(savedStaff.userId)
-        saveRefreshToken(savedStaff.userId, refreshToken)
+        val refreshToken = jwtTokenProvider.createRefreshToken(savedStaff.id!!)
+        val expiresAt = jwtTokenProvider.getExpiration(refreshToken)
+            .toInstant()
+            .atZone(ZoneId.systemDefault())
+            .toLocalDateTime()
+        saveRefreshToken(savedStaff.id!!, refreshToken, expiresAt)
 
         return SignupCompleteResponse(
             message = "STAFF 회원가입이 완료되었습니다.",
@@ -92,17 +91,12 @@ class UserService(
     
     /**
      * MANAGER 회원가입 처리
-     * 
-     * @param userId 사용자 ID
-     * @param request MANAGER 회원가입 요청 정보
-     * @return 새로운 JWT 토큰이 포함된 회원가입 완료 응답
-     * @throws BusinessException 이미 회원가입된 경우, 전화번호 중복, 사업자등록번호 중복 등
      */
     fun signupManager(userId: String, request: ManagerSignupRequest): SignupCompleteResponse {
         val user = validateAndGetOAuthUser(userId)
         
         // 이미 MANAGER로 회원가입이 완료된 경우
-        if (managerRepository.existsByUserId(userId)) {
+        if (managerRepository.findById(userId).isPresent) {
             throw BusinessException(ErrorCode.USER_ALREADY_EXISTS, "이미 MANAGER로 회원가입이 완료된 사용자입니다.")
         }
         
@@ -129,15 +123,19 @@ class UserService(
         
         // JWT 토큰 발급 (userType, status 포함)
         val accessToken = jwtTokenProvider.createAccessToken(
-            userId = savedManager.userId,
+            userId = savedManager.id!!,
             userType = savedManager.userType.code,
             status = savedManager.status.code,
-            email = savedManager.getEmail()
+            email = savedManager.oauth.email
         )
         
         // Refresh Token 생성 및 저장
-        val refreshToken = jwtTokenProvider.createRefreshToken(savedManager.userId)
-        saveRefreshToken(savedManager.userId, refreshToken)
+        val refreshToken = jwtTokenProvider.createRefreshToken(savedManager.id!!)
+        val expiresAt = jwtTokenProvider.getExpiration(refreshToken)
+            .toInstant()
+            .atZone(ZoneId.systemDefault())
+            .toLocalDateTime()
+        saveRefreshToken(savedManager.id!!, refreshToken, expiresAt)
 
         return SignupCompleteResponse(
             message = "MANAGER 회원가입이 완료되었습니다.",
@@ -149,42 +147,38 @@ class UserService(
     
     /**
      * 현재 사용자 정보 조회
-     * 
-     * @param userId 사용자 ID
-     * @return 사용자 타입에 따른 응답 DTO
-     * @throws BusinessException 사용자를 찾을 수 없는 경우
      */
     @Transactional(readOnly = true)
     fun getCurrentUserInfo(userId: String): Any {
         // OAuth 사용자 존재 확인
-        validateAndGetOAuthUser(userId)
+        val user = validateAndGetOAuthUser(userId)
 
-        val staffOpt = staffRepository.findByUserId(userId)
+        val staffOpt = staffRepository.findById(userId)
         if (staffOpt.isPresent) {
             val staff = staffOpt.get()
             return StaffUserResponse(
-                userId = staff.userId,
+                userId = staff.id!!,
                 userType = staff.userType.code,
-                name = staff.getName(),
-                email = staff.getEmail(),
-                provider = staff.getProvider(),
-                providerId = staff.getProviderId(),
+                name = staff.oauth.getDisplayName(),
+                email = staff.oauth.email,
+                provider = staff.oauth.provider,
+                providerId = staff.oauth.providerId,
                 birthDate = staff.birthDate,
                 phone = staff.phone,
                 address = staff.address,
                 experience = staff.experience
             )
         }
-        val managerOpt = managerRepository.findByUserId(userId)
+        val managerOpt = managerRepository.findById(userId)
         if (managerOpt.isPresent) {
             val manager = managerOpt.get()
             return ManagerUserResponse(
-                userId = manager.userId,
+                userId = manager.id!!,
                 userType = manager.userType.code,
-                name = manager.getName(),
-                email = manager.getEmail(),
-                provider = manager.getProvider(),
-                providerId = manager.getProviderId(),
+                name = manager.oauth.getDisplayName(),
+                email = manager.oauth.email,
+                provider = manager.oauth.provider,
+                providerId = manager.oauth.providerId,
                 birthDate = manager.birthDate,
                 phone = manager.phone,
                 businessAddress = manager.businessAddress,
@@ -197,16 +191,12 @@ class UserService(
     
     /**
      * STAFF 정보 수정
-     * 
-     * @param userId 사용자 ID
-     * @param request STAFF 정보 수정 요청
-     * @throws BusinessException 사용자를 찾을 수 없는 경우, STAFF가 아닌 경우
      */
     fun updateStaff(userId: String, request: StaffUpdateRequest) {
         // OAuth 사용자 존재 확인
         validateAndGetOAuthUser(userId)
         
-        val staff = staffRepository.findByUserId(userId)
+        val staff = staffRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND, "Staff 정보를 찾을 수 없습니다.") }
         
         // 전화번호 중복 확인
@@ -227,16 +217,12 @@ class UserService(
     
     /**
      * MANAGER 정보 수정
-     * 
-     * @param userId 사용자 ID
-     * @param request MANAGER 정보 수정 요청
-     * @throws BusinessException 사용자를 찾을 수 없는 경우, MANAGER가 아닌 경우
      */
     fun updateManager(userId: String, request: ManagerUpdateRequest) {
         // OAuth 사용자 존재 확인
         validateAndGetOAuthUser(userId)
         
-        val manager = managerRepository.findByUserId(userId)
+        val manager = managerRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND, "Manager 정보를 찾을 수 없습니다.") }
         
         // 전화번호 중복 확인
@@ -249,8 +235,7 @@ class UserService(
         // Manager 정보 업데이트
         manager.update(
             phone = request.phone,
-            businessAddress = request.businessAddress,
-            businessType = request.businessType
+            businessAddress = request.businessAddress
         )
         managerRepository.save(manager)
     }
@@ -266,8 +251,8 @@ class UserService(
         validateAndGetOAuthUser(userId)
         
         // Staff 또는 Manager에서 상태 변경
-        val staffOpt = staffRepository.findByUserId(userId)
-        val managerOpt = managerRepository.findByUserId(userId)
+        val staffOpt = staffRepository.findById(userId)
+        val managerOpt = managerRepository.findById(userId)
         
         when {
             staffOpt.isPresent -> {
@@ -289,28 +274,14 @@ class UserService(
     }
     
     /**
-     * Refresh Token을 Redis에 저장하는 메서드
-     * Redis TTL로 자동 만료되므로 별도 만료 처리 불필요
-     * 
-     * @param userId 사용자 ID
-     * @param refreshTokenValue 리프레시 토큰 값
+     * Refresh Token 저장
      */
-    private fun saveRefreshToken(userId: String, refreshTokenValue: String) {
-        // 기존 리프레시 토큰들 삭제 (단일 세션 정책)
-        refreshTokenRepository.deleteByUserId(userId)
-        
-        // 새로운 리프레시 토큰 저장
-        val expiresAt = jwtTokenProvider.getExpiration(refreshTokenValue)
-            .toInstant()
-            .atZone(ZoneId.systemDefault())
-            .toLocalDateTime()
-        
-        val refreshToken = RefreshToken.create(
-            token = refreshTokenValue,
+    private fun saveRefreshToken(userId: String, refreshToken: String, expiresAt: LocalDateTime) {
+        val token = RefreshToken.create(
+            token = refreshToken,
             userId = userId,
             expiresAt = expiresAt
         )
-        
-        refreshTokenRepository.save(refreshToken)
+        refreshTokenRepository.save(token)
     }
 } 
