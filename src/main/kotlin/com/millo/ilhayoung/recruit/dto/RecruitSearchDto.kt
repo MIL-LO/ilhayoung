@@ -46,34 +46,4 @@ data class RecruitSearchRequest(
         val sort = Sort.by(direction, sortBy)
         return PageRequest.of(page, size, sort)
     }
-}
-
-/**
- * 지원 현황 요약
- */
-@Schema(description = "지원 현황 요약")
-data class ApplicationSummaryResponse(
-    @Schema(description = "공고 ID")
-    val recruitId: String,
-
-    @Schema(description = "공고 제목")
-    val recruitTitle: String,
-
-    @Schema(description = "총 지원자 수")
-    val totalApplications: Int,
-
-    @Schema(description = "검토중 지원자 수")
-    val reviewingCount: Int,
-
-    @Schema(description = "면접 요청 지원자 수")
-    val interviewCount: Int,
-
-    @Schema(description = "채용 확정 지원자 수")
-    val hiredCount: Int,
-
-    @Schema(description = "공고 등록일")
-    val createdAt: java.time.LocalDateTime,
-
-    @Schema(description = "공고 마감일")
-    val deadline: java.time.LocalDateTime
-) 
+} 

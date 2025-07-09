@@ -195,7 +195,7 @@ data class RecruitResponse(
     val status: RecruitStatus,
 
     @Schema(description = "지원자 수")
-    val applicationCount: Int,
+    val applicationCount: Long,
 
     @Schema(description = "조회수")
     val viewCount: Long,
@@ -268,7 +268,7 @@ data class RecruitSummaryResponse(
     val status: RecruitStatus,
 
     @Schema(description = "지원자 수")
-    val applicationCount: Int,
+    val applicationCount: Long,
 
     @Schema(description = "등록일")
     val createdAt: LocalDateTime,

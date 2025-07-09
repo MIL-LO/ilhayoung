@@ -135,7 +135,7 @@ class RecruitService(
         return recruits.map { recruit ->
             try {
                 // 각 공고의 지원자 수 업데이트
-                val applicationCount = applicationRepository.countByRecruitId(recruit.id.orEmpty()).toInt()
+                val applicationCount = applicationRepository.countByRecruitId(recruit.id.orEmpty())
                 val updatedRecruit = recruit.copy(applicationCount = applicationCount)
                 RecruitSummaryResponse.from(updatedRecruit)
             } catch (e: Exception) {
@@ -247,10 +247,10 @@ class RecruitService(
             val pageResult = recruitsPage.content.map { recruit ->
                 val recruitId = recruit.id ?: throw BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "채용공고 ID가 없습니다.")
                 
-                val totalApplications = applicationRepository.countByRecruitId(recruitId).toInt()
-                val reviewingCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.REVIEWING).toInt()
-                val interviewCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.INTERVIEW).toInt()
-                val hiredCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.HIRED).toInt()
+                val totalApplications = applicationRepository.countByRecruitId(recruitId)
+                val reviewingCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.REVIEWING)
+                val interviewCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.INTERVIEW)
+                val hiredCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.HIRED)
 
                 ApplicationSummaryResponse(
                     recruitId = recruitId,

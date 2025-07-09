@@ -197,4 +197,34 @@ data class UpdateApplicationStatusRequest(
     @field:NotNull(message = "상태는 필수입니다")
     @Schema(description = "지원 상태", example = "INTERVIEW", allowableValues = ["APPLIED", "REVIEWING", "INTERVIEW", "HIRED", "REJECTED"])
     val status: ApplicationStatus
+)
+
+/**
+ * 지원 현황 요약 응답
+ */
+@Schema(description = "지원 현황 요약 응답")
+data class ApplicationSummaryResponse(
+    @Schema(description = "채용공고 ID")
+    val recruitId: String,
+
+    @Schema(description = "채용공고 제목")
+    val recruitTitle: String,
+
+    @Schema(description = "총 지원자 수")
+    val totalApplications: Long,
+
+    @Schema(description = "서류 검토 중인 지원자 수")
+    val reviewingCount: Long,
+
+    @Schema(description = "면접 중인 지원자 수")
+    val interviewCount: Long,
+
+    @Schema(description = "채용된 지원자 수")
+    val hiredCount: Long,
+
+    @Schema(description = "공고 등록일")
+    val createdAt: LocalDateTime,
+
+    @Schema(description = "공고 마감일")
+    val deadline: LocalDateTime
 ) 

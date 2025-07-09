@@ -59,13 +59,13 @@ class ApplicationService(
             contact = request.contact,
             address = request.address,
             experience = request.experience,
-            climateScore = request.climateScore
+            climateScore = request.climateScore ?: 0
         )
 
         val savedApplication = applicationRepository.save(application)
 
         // 채용공고의 지원자 수 업데이트
-        val applicationCount = applicationRepository.countByRecruitId(recruitId).toInt()
+        val applicationCount = applicationRepository.countByRecruitId(recruitId)
         val updatedRecruit = recruit.copy(applicationCount = applicationCount)
         recruitRepository.save(updatedRecruit)
 
@@ -156,7 +156,7 @@ class ApplicationService(
         applicationRepository.deleteById(applicationId)
 
         // 채용공고의 지원자 수 업데이트
-        val applicationCount = applicationRepository.countByRecruitId(application.recruitId).toInt()
+        val applicationCount = applicationRepository.countByRecruitId(application.recruitId)
         val recruit = recruitRepository.findById(application.recruitId)
             .orElseThrow { BusinessException(ErrorCode.RECRUIT_NOT_FOUND) }
         val updatedRecruit = recruit.copy(applicationCount = applicationCount)
