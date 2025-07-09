@@ -61,18 +61,7 @@ class OAuth2AuthenticationSuccessHandler(
                 val provider = "google"
                 val providerId = attributes["sub"].toString()
 
-                // OAuth 조회 또는 생성
-                val user = oauthRepository.findByEmail(email).orElseGet {
-                    val newUser = OAuth.createFromOAuth(
-                        email = email,
-                        provider = provider,
-                        providerId = providerId,
-                        oauthName = name
-                    )
-                    oauthRepository.save(newUser)
-                    newUser
-                }
-
+                val user = findOrCreateOAuth(email, provider, providerId, name)
                 CustomOAuth2User.create(user, attributes)
             }
             else -> throw IllegalArgumentException("Unexpected principal type: ${principal::class}")
@@ -140,26 +129,25 @@ class OAuth2AuthenticationSuccessHandler(
      * OAuth 인증 성공 통합 처리
      */
     private fun handleOAuthSuccess(request: HttpServletRequest, response: HttpServletResponse, oauth: OAuth) {
-        val staffOpt = staffRepository.findByUserId(oauth.id!!)
-        val managerOpt = managerRepository.findByUserId(oauth.id!!)
+        val staffOpt = staffRepository.findById(oauth.id!!)
+        val managerOpt = managerRepository.findById(oauth.id!!)
         
         when {
             // Staff로 이미 회원가입 완료 → Staff 로그인
             staffOpt.isPresent && staffOpt.get().isActive() -> {
                 val staff = staffOpt.get()
-                val staffId = staff.id ?: throw IllegalStateException("Staff ID not found")
                 
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = staffId,
+                    userId = staff.id,
                     userType = "STAFF",
                     status = "ACTIVE",
                     email = oauth.email
                 )
                 
-                val refreshToken = jwtTokenProvider.createRefreshToken(staffId)
+                val refreshToken = jwtTokenProvider.createRefreshToken(staff.id)
                 val refreshTokenEntity = RefreshToken.create(
                     token = refreshToken,
-                    userId = staffId,
+                    userId = staff.id,
                     expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
                 )
                 refreshTokenRepository.save(refreshTokenEntity)
@@ -176,19 +164,18 @@ class OAuth2AuthenticationSuccessHandler(
             // Manager로 이미 회원가입 완료 → Manager 로그인
             managerOpt.isPresent && managerOpt.get().isActive() -> {
                 val manager = managerOpt.get()
-                val managerId = manager.id ?: throw IllegalStateException("Manager ID not found")
                 
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = managerId,
+                    userId = manager.id!!,
                     userType = "MANAGER",
                     status = "ACTIVE",
                     email = oauth.email
                 )
                 
-                val refreshToken = jwtTokenProvider.createRefreshToken(managerId)
+                val refreshToken = jwtTokenProvider.createRefreshToken(manager.id!!)
                 val refreshTokenEntity = RefreshToken.create(
                     token = refreshToken,
-                    userId = managerId,
+                    userId = manager.id!!,
                     expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
                 )
                 refreshTokenRepository.save(refreshTokenEntity)

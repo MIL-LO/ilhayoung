@@ -108,14 +108,13 @@ class AuthService(
         }
         
         // Redis에서 저장된 RefreshToken과 비교 검증
-        val storedTokenOpt = refreshTokenRepository.findByUserId(userId).firstOrNull()
-        if (storedTokenOpt == null || storedTokenOpt.token != refreshToken) {
-            throw BusinessException(ErrorCode.INVALID_TOKEN)
-        }
-        
+        val storedToken = refreshTokenRepository.findByUserId(userId)
+            .firstOrNull { it.token == refreshToken }
+            ?: throw BusinessException(ErrorCode.INVALID_TOKEN)
+
         // 만료 확인
-        if (storedTokenOpt.expiresAt.isBefore(LocalDateTime.now(ZoneId.of("Asia/Seoul")))) {
-            refreshTokenRepository.delete(storedTokenOpt)
+        if (storedToken.expiresAt.isBefore(LocalDateTime.now(ZoneId.of("Asia/Seoul")))) {
+            refreshTokenRepository.delete(storedToken)
             throw BusinessException(ErrorCode.EXPIRED_TOKEN)
         }
         
@@ -141,7 +140,7 @@ class AuthService(
         
         // 기존 RefreshToken 블랙리스트 추가 및 Redis에서 삭제
         blacklistToken(refreshToken, oauth.id!!, "TOKEN_REFRESH")
-        refreshTokenRepository.delete(storedTokenOpt)
+        refreshTokenRepository.delete(storedToken)
         
         // 새로운 AccessToken + RefreshToken 생성
         val newAccessToken = jwtTokenProvider.createAccessToken(
@@ -209,11 +208,8 @@ class AuthService(
         }
         
         // 해당 사용자의 모든 RefreshToken 삭제
-        val userRefreshTokens = refreshTokenRepository.findByUserId(userId)
-        userRefreshTokens.forEach { tokenEntity ->
-            refreshTokenRepository.delete(tokenEntity)
-            invalidatedTokens++
-        }
+        refreshTokenRepository.deleteByUserId(userId)
+        invalidatedTokens = 1 // Simplified
         
         return LogoutResponse(
             message = "로그아웃이 완료되었습니다.",
@@ -302,24 +298,18 @@ class AuthService(
     
     /**
      * 현재 사용자 상태 조회 (private 헬퍼 메서드)
+     * @return 사용자 타입과 상태 코드 Pair
      */
     private fun getCurrentUserStatus(userId: String): Pair<String, String> {
-        val staffOpt = staffRepository.findByUserId(userId)
-        val managerOpt = managerRepository.findByUserId(userId)
-        
-        return when {
-            staffOpt.isPresent -> {
-                val staff = staffOpt.get()
-                Pair("STAFF", staff.status.code)
-            }
-            managerOpt.isPresent -> {
-                val manager = managerOpt.get()
-                Pair("MANAGER", manager.status.code)
-            }
-            else -> {
-                // OAuth만 있고 회원가입이 안된 경우
-                Pair("PENDING", "PENDING")
-            }
+        staffRepository.findById(userId).orElse(null)?.let {
+            return@getCurrentUserStatus Pair(it.userType.code, it.status.code)
         }
+        
+        managerRepository.findById(userId).orElse(null)?.let {
+            return@getCurrentUserStatus Pair(it.userType.code, it.status.code)
+        }
+        
+        // Staff도 Manager도 아닌 경우, OAuth 정보만 있는 상태
+        return Pair("NONE", "PENDING")
     }
 }
