@@ -1,12 +1,33 @@
 package com.millo.ilhayoung.config
 
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.data.mongodb.config.EnableMongoAuditing
+import org.springframework.data.mongodb.MongoDatabaseFactory
+import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper
+import org.springframework.data.mongodb.core.convert.MappingMongoConverter
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext
+import org.springframework.data.mongodb.core.convert.DbRefResolver
+import org.springframework.data.mongodb.core.convert.DefaultDbRefResolver
 
-/**
- * MongoDB 관련 설정을 담당하는 클래스
- * MongoDB auditing 기능을 활성화하여 BaseDocument의 생성/수정 시간을 자동으로 관리
- */
 @Configuration
-@EnableMongoAuditing
-class MongoConfig 
+class MongoConfig {
+    
+    /**
+     * MongoDB 타입 매핑 설정
+     * _class 필드를 저장하지 않도록 설정
+     */
+    @Bean
+    fun mappingMongoConverter(
+        mongoDbFactory: MongoDatabaseFactory,
+        mongoMappingContext: MongoMappingContext,
+        customConversions: MongoCustomConversions
+    ): MappingMongoConverter {
+        val dbRefResolver: DbRefResolver = DefaultDbRefResolver(mongoDbFactory)
+        val converter = MappingMongoConverter(dbRefResolver, mongoMappingContext)
+        converter.setCustomConversions(customConversions)
+        // _class 필드를 저장하지 않도록 설정
+        converter.setTypeMapper(DefaultMongoTypeMapper(null))
+        return converter
+    }
+} 

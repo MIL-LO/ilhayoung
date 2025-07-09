@@ -20,11 +20,10 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 
 /**
- * OAuth2 로그인 성공 처리 핸들러 (프론트엔드 role 파라미터 기반)
- * 1. 프론트엔드에서 전달한 role 파라미터 확인
- * 2. provider+providerId로 OAuth 조회/생성
- * 3. 선택된 role 기준으로 엔터티 조회 (생성은 회원가입 시)
- * 4. 임시/최종 토큰 발급
+ * OAuth2 로그인 성공 처리 핸들러
+ * 1. provider+providerId로 OAuth 조회/생성
+ * 2. 회원가입 상태 확인
+ * 3. 토큰 발급
  */
 @Component
 class OAuth2AuthenticationSuccessHandler(
@@ -76,7 +75,7 @@ class OAuth2AuthenticationSuccessHandler(
 
                 CustomOAuth2User.create(user, attributes)
             }
-            else -> throw IllegalArgumentException("Unexpected principal type: \\${principal::class}")
+            else -> throw IllegalArgumentException("Unexpected principal type: ${principal::class}")
         }
 
         val email = oauth2User.email
@@ -84,10 +83,7 @@ class OAuth2AuthenticationSuccessHandler(
         val providerId = oauth2User.providerId
         val oauthName = oauth2User.displayName
         
-        // 프론트엔드에서 전달한 role 파라미터 추출
-        val selectedRole = request.getParameter("role")?.uppercase() ?: "STAFF"
-        
-        // 모바일 앱 여부를 세션에 저장 (콜백에서 사용)
+        // 모바일 앱 여부를 세션에 저장
         val userAgent = request.getHeader("User-Agent") ?: ""
         val isMobileRequest = userAgent.contains("Mobile", ignoreCase = true) || 
                              userAgent.contains("Android", ignoreCase = true) || 
@@ -102,9 +98,9 @@ class OAuth2AuthenticationSuccessHandler(
         }
         
         // provider+providerId로 OAuth 조회 또는 생성
-        val oauth = findOrCreateOAuth(email, provider, providerId, oauthName, selectedRole)
+        val oauth = findOrCreateOAuth(email, provider, providerId, oauthName)
         
-        // 회원가입 상태 확인 (role 구분 없이 통합 처리)
+        // 회원가입 상태 확인
         handleOAuthSuccess(request, response, oauth)
         
         // 응답 완료 후 더 이상 처리하지 않음
@@ -114,47 +110,34 @@ class OAuth2AuthenticationSuccessHandler(
     /**
      * provider+providerId로 OAuth 조회 또는 생성
      */
-    private fun findOrCreateOAuth(email: String, provider: String, providerId: String, oauthName: String, selectedRole: String): OAuth {
-        // provider+providerId로 조회 (시나리오 요구사항)
+    private fun findOrCreateOAuth(email: String, provider: String, providerId: String, oauthName: String): OAuth {
+        // provider+providerId로 조회
         val existingOAuth = oauthRepository.findByProviderAndProviderId(provider, providerId)
         
         return if (existingOAuth.isPresent) {
             val oauth = existingOAuth.get()
-            var needUpdate = false
             
             // OAuth 이름 업데이트
             if (oauth.oauthName != oauthName) {
                 oauth.oauthName = oauthName
-                needUpdate = true
-            }
-            
-            // 선택된 역할 정보 업데이트 (매번 로그인할 때마다 프론트엔드에서 전달하는 role로 업데이트)
-            if (oauth.selectedRole != selectedRole) {
-                oauth.selectedRole = selectedRole
-                needUpdate = true
-            }
-            
-            if (needUpdate) {
                 oauthRepository.save(oauth)
             }
             oauth
         } else {
-            // 새로운 OAuth 생성 (선택된 역할 정보도 함께 저장)
+            // 새로운 OAuth 생성
             val newOAuth = OAuth.createFromOAuth(
                 email = email,
                 provider = provider,
                 providerId = providerId,
                 oauthName = oauthName
             )
-            // 선택된 역할 정보를 OAuth에 임시 저장 (회원가입 시 사용)
-            newOAuth.selectedRole = selectedRole
             oauthRepository.save(newOAuth)
+            newOAuth
         }
     }
 
     /**
      * OAuth 인증 성공 통합 처리
-     * Staff와 Manager 구분 없이 회원가입 상태만 확인
      */
     private fun handleOAuthSuccess(request: HttpServletRequest, response: HttpServletResponse, oauth: OAuth) {
         val staffOpt = staffRepository.findByUserId(oauth.id!!)
@@ -167,16 +150,16 @@ class OAuth2AuthenticationSuccessHandler(
                 val staffId = staff.id ?: throw IllegalStateException("Staff ID not found")
                 
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = staffId, // Staff의 MongoDB _id 사용
+                    userId = staffId,
                     userType = "STAFF",
                     status = "ACTIVE",
                     email = oauth.email
                 )
                 
-                val refreshToken = jwtTokenProvider.createRefreshToken(staffId) // Staff의 MongoDB _id 사용
+                val refreshToken = jwtTokenProvider.createRefreshToken(staffId)
                 val refreshTokenEntity = RefreshToken.create(
                     token = refreshToken,
-                    userId = staffId, // Staff의 MongoDB _id 사용
+                    userId = staffId,
                     expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
                 )
                 refreshTokenRepository.save(refreshTokenEntity)
@@ -196,16 +179,16 @@ class OAuth2AuthenticationSuccessHandler(
                 val managerId = manager.id ?: throw IllegalStateException("Manager ID not found")
                 
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = managerId, // Manager의 MongoDB _id 사용
+                    userId = managerId,
                     userType = "MANAGER",
                     status = "ACTIVE",
                     email = oauth.email
                 )
                 
-                val refreshToken = jwtTokenProvider.createRefreshToken(managerId) // Manager의 MongoDB _id 사용
+                val refreshToken = jwtTokenProvider.createRefreshToken(managerId)
                 val refreshTokenEntity = RefreshToken.create(
                     token = refreshToken,
-                    userId = managerId, // Manager의 MongoDB _id 사용
+                    userId = managerId,
                     expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
                 )
                 refreshTokenRepository.save(refreshTokenEntity)
@@ -225,11 +208,11 @@ class OAuth2AuthenticationSuccessHandler(
                 handleDeletedUser(request, response, "삭제된 계정입니다.")
             }
             
-            // 아직 회원가입하지 않음 → 중립적인 안내 메시지
+            // 아직 회원가입하지 않음
             else -> {
                 val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = oauth.id!!, // 회원가입 전이므로 OAuth의 _id 사용
-                    userType = "PENDING", // OAuth 인증만 완료된 상태
+                    userId = oauth.id!!,
+                    userType = "PENDING",
                     status = "PENDING",
                     email = oauth.email
                 )
@@ -257,27 +240,15 @@ class OAuth2AuthenticationSuccessHandler(
     }
 
     /**
-     * 오류 처리
-     */
-    private fun handleError(request: HttpServletRequest, response: HttpServletResponse, message: String) {
-        val responseBody = SimpleOAuthResponse(
-            success = false,
-            message = message,
-            accessToken = ""
-        )
-        sendResponse(request, response, responseBody)
-    }
-
-    /**
      * 응답 전송 공통 메서드
      */
     private fun sendResponse(request: HttpServletRequest, response: HttpServletResponse, responseBody: Any) {
-        // User-Agent 및 요청 헤더 확인하여 모바일 앱인지 브라우저인지 구분
+        // User-Agent 및 요청 헤더 확인
         val userAgent = request.getHeader("User-Agent") ?: ""
         val acceptHeader = request.getHeader("Accept") ?: ""
         val refererHeader = request.getHeader("Referer") ?: ""
         
-        // 모바일 앱 감지 로직 개선 (세션 정보 우선 사용)
+        // 모바일 앱 감지 로직
         val sessionMobileFlag = request.session.getAttribute("isMobileApp") as? Boolean ?: false
         val isMobileApp = sessionMobileFlag ||
                          userAgent.contains("Mobile", ignoreCase = true) || 
@@ -306,7 +277,7 @@ class OAuth2AuthenticationSuccessHandler(
             response.writer.write(objectMapper.writeValueAsString(responseBody))
             response.writer.flush()
         } else {
-            // 브라우저: 임시 HTML 응답 (개발/테스트용)
+            // 브라우저: 임시 HTML 응답
             response.contentType = "text/html"
             response.characterEncoding = "UTF-8"
             response.status = HttpServletResponse.SC_OK

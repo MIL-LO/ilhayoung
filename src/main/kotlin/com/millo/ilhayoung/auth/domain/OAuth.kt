@@ -1,6 +1,7 @@
 package com.millo.ilhayoung.auth.domain
 
-import com.millo.ilhayoung.common.domain.BaseDocument
+import org.springframework.data.annotation.Id
+import org.springframework.data.annotation.TypeAlias
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 
@@ -9,6 +10,7 @@ import org.springframework.data.mongodb.core.mapping.Document
  * 순수하게 OAuth 인증 정보만 저장
  */
 @Document(collection = "oauth_users")
+@TypeAlias("OAuth")
 class OAuth(
     
     /**
@@ -31,15 +33,10 @@ class OAuth(
      * OAuth2에서 받은 사용자 이름
      * Google: name, Kakao: nickname, Naver: name
      */
-    var oauthName: String,
-    
-    /**
-     * 프론트엔드에서 선택한 역할 (STAFF/MANAGER)
-     * 회원가입 시 참조용으로 임시 저장
-     */
-    var selectedRole: String? = null
-    
-) : BaseDocument() {
+    var oauthName: String
+) {
+    @Id
+    var id: String? = null
     
     /**
      * OAuth에서 받은 이름 또는 기본값 반환
@@ -63,8 +60,7 @@ class OAuth(
                 email = email,
                 provider = provider,
                 providerId = providerId,
-                oauthName = oauthName,
-                selectedRole = null
+                oauthName = oauthName
             )
         }
     }
