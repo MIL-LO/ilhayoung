@@ -30,7 +30,7 @@ class RecruitController(
 ) {
 
     @Operation(
-        summary = "채용공고 등록",
+        summary = "채용공고 등록 - 공고 관리 > 새 공고 작성",
         description = "Manager가 새로운 채용공고를 등록합니다."
     )
     @PostMapping
@@ -45,7 +45,7 @@ class RecruitController(
     }
 
     @Operation(
-        summary = "채용공고 목록 조회",
+        summary = "채용공고 목록 조회(공고 리스트 권한 필요없음)",
         description = "채용공고 목록을 조회합니다. 필터링 및 검색이 가능합니다."
     )
     @GetMapping
@@ -79,7 +79,7 @@ class RecruitController(
     }
 
     @Operation(
-        summary = "채용공고 상세 조회",
+        summary = "채용공고 상세 조회(공고 상세페이지)",
         description = "특정 채용공고의 상세 정보를 조회합니다."
     )
     @GetMapping("/{recruitId}")
@@ -91,7 +91,7 @@ class RecruitController(
     }
 
     @Operation(
-        summary = "내가 작성한 채용공고 목록 조회",
+        summary = "내가 작성한 채용공고 목록 조회 - 공고 관리 > 내 공고",
         description = "로그인한 Manager가 작성한 채용공고 목록을 조회합니다.",
     )
     @GetMapping("/my")
@@ -107,7 +107,7 @@ class RecruitController(
     }
 
     @Operation(
-        summary = "채용공고 수정",
+        summary = "채용공고 수정 ㅣ 공고 등록 후 수정 버튼",
         description = "채용공고를 수정합니다. 작성자만 수정 가능합니다.",
     )
     @PutMapping("/{recruitId}")
