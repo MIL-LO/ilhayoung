@@ -44,15 +44,15 @@ data class CreateRecruitRequest(
     val workLocation: String,
 
     @field:Positive(message = "급여는 양수여야 합니다")
-    @Schema(description = "급여", example = "9620")
+    @Schema(description = "시급", example = "9620")
     val salary: Long,
 
     @field:NotBlank(message = "직무는 필수입니다")
-    @Schema(description = "직무", example = "서빙")
+    @Schema(description = "직무분야", example = "서빙")
     val jobType: String,
 
     @field:NotBlank(message = "직책은 필수입니다")
-    @Schema(description = "직책", example = "홀 스태프")
+    @Schema(description = "세부직무", example = "홀 스태프")
     val position: String,
 
     @field:Valid
@@ -87,7 +87,7 @@ data class CreateRecruitRequest(
 
     @field:NotBlank(message = "기업 연락처는 필수입니다")
     @field:Pattern(regexp = "^\\d{2,3}-\\d{3,4}-\\d{4}$", message = "올바른 전화번호 형식이 아닙니다")
-    @Schema(description = "기업 연락처", example = "064-123-4567")
+    @Schema(description = "업체 연락처", example = "064-123-4567")
     val companyContact: String,
 
     @field:NotBlank(message = "대표자 이름은 필수입니다")
