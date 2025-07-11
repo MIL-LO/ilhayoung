@@ -46,7 +46,7 @@
 *개발 간소화를 위해 무료 플랫폼 기반으로 설계*  
 *추후 자영업자 대상 테스트 시, 반응형 웹 우선 대응*
 
-<img alt="system_architecture" src="img/jeju_gap_year_system_architecture.png"  width="500">
+<img alt="system_architecture" src="img/ilhayoung_architecture.png"  width="500">
 
 </div>
 
