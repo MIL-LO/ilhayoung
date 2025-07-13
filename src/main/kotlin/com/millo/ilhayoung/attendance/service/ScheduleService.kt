@@ -209,7 +209,7 @@ class ScheduleService(
         val endDate = startDate.plusDays(periodDays.toLong())
 
         val workDayMap = workSchedules.days.associate {
-            DayOfWeek.valueOf(it.uppercase()) to (LocalTime.parse(workSchedules.startTime) to LocalTime.parse(workSchedules.endTime))
+            koreanDayToEnglish(it) to (LocalTime.parse(workSchedules.startTime) to LocalTime.parse(workSchedules.endTime))
         }
 
         var currentDate = startDate
