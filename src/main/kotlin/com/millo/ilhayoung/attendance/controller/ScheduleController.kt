@@ -196,44 +196,44 @@ class ScheduleController(
         )
     }
 
-//    @Operation(
-//        summary = "[MANAGER] 대체 근무자 채용공고 정보 조회",
-//        description = """
-//        결근 처리된 스케줄에 대해 대체 근무자를 구하기 위한 채용공고 생성 정보를 제공합니다.
-//
-//        **제공 정보:**
-//        - 원본 채용공고 정보를 기반으로 한 대체 채용공고 데이터
-//        - 자동 생성된 제목 (기존 제목 + "(대체근무)")
-//        - 결근한 직원 정보
-//        - 동일한 근무 조건 (시간, 장소, 시급 등)
-//
-//        **사용 목적:**
-//        - 급작스러운 결근 시 대체 인력 모집
-//        - 채용공고 생성 API 호출 시 필요한 정보 미리 제공
-//
-//        **사용 ENUM:**
-//        - **WorkStatus**: 근무 상태 (ABSENT 상태의 스케줄만 대상)
-//          - `ABSENT`: 결근 (결근) - 대체 근무자 모집 대상
-//
-//        **권한:** MANAGER만 조회 가능
-//        """
-//    )
-//    @GetMapping("/{scheduleId}/replacement-info")
-//    @PreAuthorize("hasRole('MANAGER')")
-//    fun getReplacementInfo(
-//        @Parameter(
-//            description = "대체 근무자 정보를 조회할 스케줄의 고유 ID (ABSENT 상태여야 함)",
-//            required = true,
-//            example = "65a1b2c3d4e5f6789abcdef0"
-//        )
-//        @PathVariable scheduleId: String,
-//        @AuthenticationPrincipal userPrincipal: UserPrincipal
-//    ): ResponseEntity<ApiResponse<ReplacementInfoDto>> {
-//        val replacementInfo = scheduleService.getReplacementInfo(scheduleId)
-//        return ResponseEntity.ok(
-//            ApiResponse.success(replacementInfo)
-//        )
-//    }
+    @Operation(
+        summary = "[MANAGER] 대체 근무자 채용공고 정보 조회",
+        description = """
+        결근 처리된 스케줄에 대해 대체 근무자를 구하기 위한 채용공고 생성 정보를 제공합니다.
+
+        **제공 정보:**
+        - 원본 채용공고 정보를 기반으로 한 대체 채용공고 데이터
+        - 자동 생성된 제목 (기존 제목 + "(대체근무)")
+        - 결근한 직원 정보
+        - 동일한 근무 조건 (시간, 장소, 시급 등)
+
+        **사용 목적:**
+        - 급작스러운 결근 시 대체 인력 모집
+        - 채용공고 생성 API 호출 시 필요한 정보 미리 제공
+
+        **사용 ENUM:**
+        - **WorkStatus**: 근무 상태 (ABSENT 상태의 스케줄만 대상)
+          - `ABSENT`: 결근 (결근) - 대체 근무자 모집 대상
+
+        **권한:** MANAGER만 조회 가능
+        """
+    )
+    @GetMapping("/{scheduleId}/replacement-info")
+    @PreAuthorize("hasRole('MANAGER')")
+    fun getReplacementInfo(
+        @Parameter(
+            description = "대체 근무자 정보를 조회할 스케줄의 고유 ID (ABSENT 상태여야 함)",
+            required = true,
+            example = "65a1b2c3d4e5f6789abcdef0"
+        )
+        @PathVariable scheduleId: String,
+        @AuthenticationPrincipal userPrincipal: UserPrincipal
+    ): ResponseEntity<ApiResponse<ReplacementInfoDto>> {
+        val replacementInfo = scheduleService.getReplacementInfo(scheduleId)
+        return ResponseEntity.ok(
+            ApiResponse.success(replacementInfo)
+        )
+    }
 
     @Operation(
         summary = "[STAFF] 오늘의 근무 스케줄 조회",
