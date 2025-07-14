@@ -115,6 +115,7 @@ class UserService(
             oauth = user,
             birthDate = request.birthDate,
             phone = request.phone,
+            businessName = request.businessName,
             businessAddress = request.businessAddress,
             businessNumber = request.businessNumber,
             businessType = request.businessType
@@ -181,6 +182,7 @@ class UserService(
                 providerId = manager.oauth.providerId,
                 birthDate = manager.birthDate,
                 phone = manager.phone,
+                businessName = manager.businessName,
                 businessAddress = manager.businessAddress,
                 businessNumber = manager.businessNumber,
                 businessType = manager.businessType
@@ -235,7 +237,9 @@ class UserService(
         // Manager 정보 업데이트
         manager.update(
             phone = request.phone,
-            businessAddress = request.businessAddress
+            businessName = request.businessName,
+            businessAddress = request.businessAddress,
+            businessType = request.businessType
         )
         managerRepository.save(manager)
     }

@@ -62,6 +62,7 @@ data class StaffSignupRequest(
 {
   "birthDate": "1980-02-15",
   "phone": "010-2222-3333",
+  "businessName": "제주 힐링 카페",
   "businessAddress": "제주시 연동 789-12",
   "businessNumber": "1234567890",
   "businessType": "요식업"
@@ -88,6 +89,14 @@ data class ManagerSignupRequest(
     @Schema(description = "전화번호", example = "010-2222-3333")
     @JsonProperty("phone")
     val phone: String,
+    
+    /**
+     * 업장이름
+     */
+    @field:NotBlank(message = "업장이름은 필수입니다.")
+    @Schema(description = "업장이름", example = "제주 힐링 카페")
+    @JsonProperty("businessName")
+    val businessName: String,
     
     /**
      * 사업지 주소
@@ -255,6 +264,13 @@ data class ManagerUserResponse(
     val phone: String,
     
     /**
+     * 업장이름
+     */
+    @Schema(description = "업장이름", example = "제주 힐링 카페")
+    @JsonProperty("businessName")
+    val businessName: String,
+    
+    /**
      * 사업지 주소
      */
     @Schema(description = "사업지 주소", example = "서울시 마포구 서교동 321")
@@ -318,6 +334,13 @@ data class ManagerUpdateRequest(
     @Schema(description = "전화번호", example = "010-1111-2222")
     @JsonProperty("phone")
     val phone: String?,
+    
+    /**
+     * 업장이름
+     */
+    @Schema(description = "업장이름", example = "제주 힐링 카페")
+    @JsonProperty("businessName")
+    val businessName: String?,
     
     /**
      * 사업지 주소

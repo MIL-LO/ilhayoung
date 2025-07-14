@@ -29,6 +29,11 @@ class Manager(
     var phone: String,
     
     /**
+     * 업장이름
+     */
+    var businessName: String,
+    
+    /**
      * 사업지 주소
      */
     var businessAddress: String,
@@ -124,10 +129,12 @@ class Manager(
      */
     fun update(
         phone: String? = null,
+        businessName: String? = null,
         businessAddress: String? = null,
         businessType: String? = null
     ) {
         phone?.let { this.phone = it }
+        businessName?.let { this.businessName = it }
         businessAddress?.let { this.businessAddress = it }
         businessType?.let { this.businessType = it }
         this.updatedAt = LocalDateTime.now()
@@ -141,6 +148,7 @@ class Manager(
             oauth: OAuth,
             birthDate: String,
             phone: String,
+            businessName: String,
             businessAddress: String,
             businessNumber: String,
             businessType: String
@@ -149,6 +157,7 @@ class Manager(
                 oauth = oauth,
                 birthDate = birthDate,
                 phone = phone,
+                businessName = businessName,
                 businessAddress = businessAddress,
                 businessNumber = businessNumber,
                 businessType = businessType,
