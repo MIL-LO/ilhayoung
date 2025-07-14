@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*
 
 @Tag(name = "Salary", description = "급여 관리 API")
 @RestController
-@RequestMapping("/api/salaries")
+@RequestMapping("/api/v1/salaries")
 class SalaryController(
     private val salaryService: SalaryService
 ) {

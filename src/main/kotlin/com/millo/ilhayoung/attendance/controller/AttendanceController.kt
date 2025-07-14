@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*
     description = "출근 관리 API - 근로자 출석 현황 조회 및 체크인/체크아웃 관리"
 )
 @RestController
-@RequestMapping("/api/attendances")
+@RequestMapping("/api/v1/attendances")
 @SecurityRequirement(name = "BearerAuth")
 class AttendanceController(
     private val attendanceService: AttendanceService

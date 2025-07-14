@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*
     description = "스케줄 관리 API - 근무 일정 생성, 조회, 수정 및 대체 근무자 정보 제공"
 )
 @RestController
-@RequestMapping("/api/schedules")
+@RequestMapping("/api/v1/schedules")
 @SecurityRequirement(name = "BearerAuth")
 class ScheduleController(
     private val scheduleService: ScheduleService
