@@ -45,6 +45,7 @@ class RecruitController(
     }
 
     @Operation(
+        security = [],
         summary = "채용공고 목록 조회(공고 리스트 권한 필요없음)",
         description = "채용공고 목록을 조회합니다. 필터링 및 검색이 가능합니다."
     )

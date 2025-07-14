@@ -72,7 +72,8 @@ class SecurityConfig(
                         "/actuator/**",
 
                         // 사업자 등록번호 검증
-                        "/api/v1/users/verify-business"
+                        "/api/v1/users/verify-business",
+                        "/api/v1/recruits"
                     ).permitAll()
                     
                     // 회원가입 API (OAuth2 인증 후 접근 가능)
