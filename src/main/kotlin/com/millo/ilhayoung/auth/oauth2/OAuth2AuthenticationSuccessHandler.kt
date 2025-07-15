@@ -255,9 +255,16 @@ class OAuth2AuthenticationSuccessHandler(
             // 아직 회원가입하지 않음
             else -> {
                 println("❓ 아직 회원가입하지 않음 - PENDING 상태")
+                
+                // 요청된 역할에 따라 적절한 userType 설정
+                val userTypeForToken = when (requestedRole) {
+                    "MANAGER" -> "MANAGER"
+                    else -> "STAFF" // 기본값은 STAFF
+                }
+                
                 val accessToken = jwtTokenProvider.createAccessToken(
                     userId = oauth.id!!,
-                    userType = "PENDING",
+                    userType = userTypeForToken,
                     status = "PENDING",
                     email = oauth.email
                 )

@@ -83,7 +83,14 @@ class JwtTokenProvider(
         val userId = claims.subject
         val email = claims["email"] as? String
         val userTypeCode = claims["userType"] as? String
-        val userType = userTypeCode?.let { com.millo.ilhayoung.user.domain.UserType.fromCode(it) }
+        val status = claims["status"] as? String
+        
+        // PENDING 상태일 때는 userType을 null로 설정하여 권한 제한
+        val userType = if (status == "PENDING") {
+            null
+        } else {
+            userTypeCode?.let { com.millo.ilhayoung.user.domain.UserType.fromCode(it) }
+        }
 
         val authorities = userType?.let { listOf(SimpleGrantedAuthority("ROLE_${it.code}")) } ?: emptyList()
 
