@@ -69,4 +69,14 @@ interface RecruitRepository : MongoRepository<Recruit, String> {
      * Manager의 공고 수 조회
      */
     fun countByManagerIdAndStatus(managerId: String, status: RecruitStatus): Long
+    
+    /**
+     * 상태별 공고 수 조회
+     */
+    fun countByStatus(status: RecruitStatus): Long
+    
+    /**
+     * 매니저별 최근 공고 조회 (상위 2개)
+     */
+    fun findTop2ByManagerIdOrderByCreatedAtDesc(managerId: String): List<Recruit>
 }

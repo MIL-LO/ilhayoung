@@ -6,5 +6,6 @@ package com.millo.ilhayoung.recruit.domain
 enum class RecruitStatus(val displayName: String) {
     ACTIVE("모집중"),
     CLOSED("마감"),
-    COMPLETED("모집완료")
+    COMPLETED("모집완료"),
+    DELETED("삭제됨")
 } 

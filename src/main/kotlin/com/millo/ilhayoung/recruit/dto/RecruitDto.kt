@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.*
 import java.time.LocalDateTime
+import java.time.LocalDate
 
 /**
  * 채용공고 등록 요청
@@ -30,7 +31,10 @@ import java.time.LocalDateTime
   "companyName": "제주 힐링 카페",
   "companyAddress": "제주시 연동 123-45",
   "companyContact": "064-123-4567",
-  "representativeName": "김제주"
+  "representativeName": "김제주",
+  "workStartDate": "2025-01-20",
+  "workEndDate": "2025-03-20",
+  "recruitmentCount": 2
 }
 """)
 data class CreateRecruitRequest(
@@ -92,7 +96,25 @@ data class CreateRecruitRequest(
 
     @field:NotBlank(message = "대표자 이름은 필수입니다")
     @Schema(description = "대표자 이름", example = "홍길동")
-    val representativeName: String
+    val representativeName: String,
+
+    @field:NotNull(message = "근무 시작일은 필수입니다")
+    @Schema(description = "근무 시작일", example = "2025-01-20")
+    val workStartDate: LocalDate,
+
+    @field:NotNull(message = "근무 종료일은 필수입니다")
+    @Schema(description = "근무 종료일", example = "2025-03-20")
+    val workEndDate: LocalDate,
+
+    @field:Positive(message = "근무 기간은 양수여야 합니다")
+    @field:Max(value = 60, message = "근무 기간은 60개월 이하여야 합니다")
+    @Schema(description = "근무 기간 (개월수)", example = "3")
+    val workDurationMonths: Int,
+
+    @field:Positive(message = "모집인원은 양수여야 합니다")
+    @field:Max(value = 100, message = "모집인원은 100명 이하여야 합니다")
+    @Schema(description = "모집인원", example = "2")
+    val recruitmentCount: Int
 )
 
 /**
@@ -204,7 +226,19 @@ data class RecruitResponse(
     val createdAt: LocalDateTime,
 
     @Schema(description = "수정일")
-    val updatedAt: LocalDateTime
+    val updatedAt: LocalDateTime,
+
+    @Schema(description = "근무 시작일")
+    val workStartDate: LocalDate,
+
+    @Schema(description = "근무 종료일")
+    val workEndDate: LocalDate,
+
+    @Schema(description = "근무 기간 (개월수)")
+    val workDurationMonths: Int,
+
+    @Schema(description = "모집인원")
+    val recruitmentCount: Int
 ) {
     companion object {
         fun from(recruit: Recruit): RecruitResponse {
@@ -235,7 +269,11 @@ data class RecruitResponse(
                 applicationCount = recruit.applicationCount,
                 viewCount = recruit.viewCount,
                 createdAt = recruit.createdAt!!,
-                updatedAt = recruit.updatedAt!!
+                updatedAt = recruit.updatedAt!!,
+                workStartDate = recruit.workStartDate!!,
+                workEndDate = recruit.workEndDate!!,
+                workDurationMonths = recruit.workDurationMonths,
+                recruitmentCount = recruit.recruitmentCount
             )
         }
     }
@@ -248,52 +286,91 @@ data class RecruitResponse(
 data class RecruitSummaryResponse(
     @Schema(description = "공고 ID")
     val id: String,
-
-    @Schema(description = "공고명")
+    @Schema(description = "공고 제목")
     val title: String,
-
-    @Schema(description = "기업명")
-    val companyName: String,
-
+    @Schema(description = "근무지")
+    val workLocation: String,
     @Schema(description = "급여")
     val salary: Long,
-
-    @Schema(description = "근무지역")
-    val workLocation: String,
-
-    @Schema(description = "근무일자 및 기간")
+    @Schema(description = "직무")
+    val jobType: String,
+    @Schema(description = "직책")
+    val position: String,
+    @Schema(description = "근무일정")
     val workSchedule: WorkScheduleDto,
-
+    @Schema(description = "성별")
+    val gender: String?,
+    @Schema(description = "상세 설명")
+    val description: String,
+    @Schema(description = "이미지 URL 목록")
+    val images: List<String>,
+    @Schema(description = "공고 마감 기한")
+    val deadline: LocalDateTime,
+    @Schema(description = "급여 정산일")
+    val paymentDate: String,
+    @Schema(description = "작성자 ID")
+    val managerId: String,
+    @Schema(description = "기업명")
+    val companyName: String,
+    @Schema(description = "회사 주소")
+    val companyAddress: String,
+    @Schema(description = "기업 연락처")
+    val companyContact: String,
+    @Schema(description = "대표자 이름")
+    val representativeName: String,
     @Schema(description = "공고 상태")
     val status: RecruitStatus,
-
     @Schema(description = "지원자 수")
     val applicationCount: Long,
-
+    @Schema(description = "조회수")
+    val viewCount: Long,
     @Schema(description = "등록일")
     val createdAt: LocalDateTime,
-
-    @Schema(description = "마감일")
-    val deadline: LocalDateTime
+    @Schema(description = "수정일")
+    val updatedAt: LocalDateTime,
+    @Schema(description = "근무 시작일")
+    val workStartDate: LocalDate,
+    @Schema(description = "근무 종료일")
+    val workEndDate: LocalDate,
+    @Schema(description = "근무 기간 (개월수)")
+    val workDurationMonths: Int,
+    @Schema(description = "모집인원")
+    val recruitmentCount: Int
 ) {
     companion object {
         fun from(recruit: Recruit): RecruitSummaryResponse {
             return RecruitSummaryResponse(
                 id = recruit.id!!,
                 title = recruit.title,
-                companyName = recruit.companyName,
-                salary = recruit.salary,
                 workLocation = recruit.workLocation,
+                salary = recruit.salary,
+                jobType = recruit.jobType,
+                position = recruit.position,
                 workSchedule = WorkScheduleDto(
                     days = recruit.workSchedule.days,
                     startTime = recruit.workSchedule.startTime,
                     endTime = recruit.workSchedule.endTime,
                     workPeriod = recruit.workSchedule.workPeriod
                 ),
+                gender = recruit.gender,
+                description = recruit.description,
+                images = recruit.images,
+                deadline = recruit.deadline,
+                paymentDate = recruit.paymentDate,
+                managerId = recruit.managerId,
+                companyName = recruit.companyName,
+                companyAddress = recruit.companyAddress,
+                companyContact = recruit.companyContact,
+                representativeName = recruit.representativeName,
                 status = recruit.status,
                 applicationCount = recruit.applicationCount,
+                viewCount = recruit.viewCount,
                 createdAt = recruit.createdAt!!,
-                deadline = recruit.deadline
+                updatedAt = recruit.updatedAt!!,
+                workStartDate = recruit.workStartDate!!,
+                workEndDate = recruit.workEndDate!!,
+                workDurationMonths = recruit.workDurationMonths,
+                recruitmentCount = recruit.recruitmentCount
             )
         }
     }
@@ -307,7 +384,11 @@ data class RecruitSummaryResponse(
   "title": "제주 연동 카페 홀 스태프 모집 (급구)",
   "salary": 11000,
   "deadline": "2025-01-31T23:59:59",
-  "description": "친절하고 밝은 성격의 홀 스태프를 모집합니다. 카페 운영 경험이 있으시면 우대합니다. 급하게 구하고 있습니다!"
+  "description": "친절하고 밝은 성격의 홀 스태프를 모집합니다. 카페 운영 경험이 있으시면 우대합니다. 급하게 구하고 있습니다!",
+  "workStartDate": "2025-01-20",
+  "workEndDate": "2025-03-20",
+  "workDurationMonths": 3,
+  "recruitmentCount": 2
 }
 """)
 data class UpdateRecruitRequest(
@@ -354,7 +435,19 @@ data class UpdateRecruitRequest(
     val companyContact: String?,
 
     @Schema(description = "대표자 이름")
-    val representativeName: String?
+    val representativeName: String?,
+
+    @Schema(description = "근무 시작일")
+    val workStartDate: LocalDate?,
+
+    @Schema(description = "근무 종료일")
+    val workEndDate: LocalDate?,
+
+    @Schema(description = "근무 기간 (개월수)")
+    val workDurationMonths: Int?,
+
+    @Schema(description = "모집인원")
+    val recruitmentCount: Int?
 )
 
 /**

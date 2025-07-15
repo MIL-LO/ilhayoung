@@ -129,74 +129,132 @@ class OAuth2AuthenticationSuccessHandler(
      * OAuth 인증 성공 통합 처리
      */
     private fun handleOAuthSuccess(request: HttpServletRequest, response: HttpServletResponse, oauth: OAuth) {
+        println("=== OAuth2 성공 핸들러 디버깅 ===")
+        println("OAuth ID: ${oauth.id}")
+        println("OAuth Email: ${oauth.email}")
+        
         val staffOpt = staffRepository.findById(oauth.id!!)
         val managerOpt = managerRepository.findById(oauth.id!!)
         
+        println("Staff 존재 여부: ${staffOpt.isPresent}")
+        println("Manager 존재 여부: ${managerOpt.isPresent}")
+        
+        if (staffOpt.isPresent) {
+            val staff = staffOpt.get()
+            println("Staff 상태: ${staff.status}, 삭제됨: ${staff.isDeleted()}")
+        }
+        
+        if (managerOpt.isPresent) {
+            val manager = managerOpt.get()
+            println("Manager 상태: ${manager.status}, 삭제됨: ${manager.isDeleted()}")
+        }
+        
+        // 요청된 역할 확인 (세션에서 먼저 확인, 없으면 URL 파라미터에서)
+        val requestedRole = request.session.getAttribute("requestedRole") as? String 
+            ?: request.getParameter("role") 
+            ?: "STAFF"
+        println("요청된 역할: $requestedRole")
+        
+        // 세션에서 role 제거 (한 번만 사용)
+        request.session.removeAttribute("requestedRole")
+        
         when {
-            // Staff로 이미 회원가입 완료 → Staff 로그인
+            // Staff로 이미 회원가입 완료
             staffOpt.isPresent && staffOpt.get().isActive() -> {
+                println("✅ Staff로 이미 가입됨 - Staff 로그인 처리")
                 val staff = staffOpt.get()
                 
-                val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = staff.id,
-                    userType = "STAFF",
-                    status = "ACTIVE",
-                    email = oauth.email
-                )
-                
-                val refreshToken = jwtTokenProvider.createRefreshToken(staff.id)
-                val refreshTokenEntity = RefreshToken.create(
-                    token = refreshToken,
-                    userId = staff.id,
-                    expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
-                )
-                refreshTokenRepository.save(refreshTokenEntity)
-                
-                val responseBody = OAuthLoginSuccessResponse(
-                    success = true,
-                    message = "STAFF 로그인 성공",
-                    accessToken = accessToken,
-                    refreshToken = refreshToken
-                )
-                sendResponse(request, response, responseBody)
+                // 요청된 역할이 Manager인 경우 경고 메시지와 함께 Staff로 로그인
+                if (requestedRole == "MANAGER") {
+                    println("⚠️ Manager로 요청했지만 Staff로 가입됨 - 로그인 거부 및 안내")
+                    val responseBody = SimpleOAuthResponse(
+                        success = false,
+                        message = "이미 STAFF로 가입된 계정입니다. 다른 계정으로 시도하거나 STAFF로 로그인하세요.",
+                        accessToken = ""
+                    )
+                    sendResponse(request, response, responseBody)
+                    return
+                } else {
+                    // 정상적인 Staff 로그인
+                    println("✅ 정상적인 Staff 로그인")
+                    val accessToken = jwtTokenProvider.createAccessToken(
+                        userId = staff.id,
+                        userType = "STAFF",
+                        status = "ACTIVE",
+                        email = oauth.email
+                    )
+                    
+                    val refreshToken = jwtTokenProvider.createRefreshToken(staff.id)
+                    val refreshTokenEntity = RefreshToken.create(
+                        token = refreshToken,
+                        userId = staff.id,
+                        expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
+                    )
+                    refreshTokenRepository.save(refreshTokenEntity)
+                    
+                    val responseBody = OAuthLoginSuccessResponse(
+                        success = true,
+                        message = "STAFF 로그인 성공",
+                        accessToken = accessToken,
+                        refreshToken = refreshToken
+                    )
+                    sendResponse(request, response, responseBody)
+                }
             }
             
-            // Manager로 이미 회원가입 완료 → Manager 로그인
+            // Manager로 이미 회원가입 완료
             managerOpt.isPresent && managerOpt.get().isActive() -> {
+                println("✅ Manager로 이미 가입됨 - Manager 로그인 처리")
                 val manager = managerOpt.get()
                 
-                val accessToken = jwtTokenProvider.createAccessToken(
-                    userId = manager.id!!,
-                    userType = "MANAGER",
-                    status = "ACTIVE",
-                    email = oauth.email
-                )
-                
-                val refreshToken = jwtTokenProvider.createRefreshToken(manager.id!!)
-                val refreshTokenEntity = RefreshToken.create(
-                    token = refreshToken,
-                    userId = manager.id!!,
-                    expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
-                )
-                refreshTokenRepository.save(refreshTokenEntity)
-                
-                val responseBody = OAuthLoginSuccessResponse(
-                    success = true,
-                    message = "MANAGER 로그인 성공",
-                    accessToken = accessToken,
-                    refreshToken = refreshToken
-                )
-                sendResponse(request, response, responseBody)
+                // 요청된 역할이 Staff인 경우 로그인 거부(에러 반환)
+                if (requestedRole == "STAFF") {
+                    println("❌ Manager 계정은 STAFF로 로그인할 수 없습니다. 로그인 거부!")
+                    val responseBody = SimpleOAuthResponse(
+                        success = false,
+                        message = "이미 Manager로 가입된 계정입니다. STAFF로 로그인할 수 없습니다.",
+                        accessToken = ""
+                    )
+                    sendResponse(request, response, responseBody)
+                    return
+                } else {
+                    // 정상적인 Manager 로그인
+                    println("✅ 정상적인 Manager 로그인")
+                    val accessToken = jwtTokenProvider.createAccessToken(
+                        userId = manager.id!!,
+                        userType = "MANAGER",
+                        status = "ACTIVE",
+                        email = oauth.email
+                    )
+                    
+                    val refreshToken = jwtTokenProvider.createRefreshToken(manager.id!!)
+                    val refreshTokenEntity = RefreshToken.create(
+                        token = refreshToken,
+                        userId = manager.id!!,
+                        expiresAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusDays(30)
+                    )
+                    refreshTokenRepository.save(refreshTokenEntity)
+                    
+                    val responseBody = OAuthLoginSuccessResponse(
+                        success = true,
+                        message = "MANAGER 로그인 성공",
+                        accessToken = accessToken,
+                        refreshToken = refreshToken
+                    )
+                    sendResponse(request, response, responseBody)
+                }
             }
             
             // 삭제된 계정들 처리
             (staffOpt.isPresent && staffOpt.get().isDeleted()) || 
             (managerOpt.isPresent && managerOpt.get().isDeleted()) -> {
+                println("❌ 삭제된 계정")
                 handleDeletedUser(request, response, "삭제된 계정입니다.")
             }
             
             // 아직 회원가입하지 않음
             else -> {
+                println("❓ 아직 회원가입하지 않음 - PENDING 상태")
                 val accessToken = jwtTokenProvider.createAccessToken(
                     userId = oauth.id!!,
                     userType = "PENDING",

@@ -19,6 +19,9 @@ import java.time.LocalDateTime
     )
 )
 data class Application(
+    @Id
+    val id: String? = null,
+    
     val recruitId: String,                // 채용공고 ID
     val staffId: String,                  // 지원자 ID
     val name: String,                     // 이름
@@ -26,11 +29,10 @@ data class Application(
     val contact: String,                  // 연락처
     val address: String,                  // 주소
     val experience: String,               // 경력사항
-    val climateScore: Int,               // 기후점수
-    val status: ApplicationStatus = ApplicationStatus.REVIEWING, // 지원 상태
-    
-    @Id
-    val id: String? = null,
+    val climateScore: Int,               // 오름지수
+    val status: ApplicationStatus = ApplicationStatus.APPLIED, // 지원 상태
+    val recruitTitle: String? = null,     // 채용공고 제목
+    val recruitManagerId: String? = null, // 채용공고 작성자 ID
     
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val updatedAt: LocalDateTime = LocalDateTime.now()

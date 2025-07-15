@@ -6,6 +6,9 @@ import com.millo.ilhayoung.attendance.repository.AttendanceRecordRepository
 import com.millo.ilhayoung.attendance.repository.ScheduleRepository
 import com.millo.ilhayoung.common.exception.BusinessException
 import com.millo.ilhayoung.common.exception.ErrorCode
+import com.millo.ilhayoung.recruit.domain.ApplicationStatus
+import com.millo.ilhayoung.recruit.repository.ApplicationRepository
+import com.millo.ilhayoung.recruit.repository.RecruitRepository
 import com.millo.ilhayoung.user.repository.StaffRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -19,16 +22,80 @@ class AttendanceService(
     private val scheduleRepository: ScheduleRepository,
     private val attendanceRecordRepository: AttendanceRecordRepository,
     private val staffRepository: StaffRepository,
+    private val applicationRepository: ApplicationRepository,
+    private val recruitRepository: RecruitRepository,
 ) {
     fun getWorkersOverview(): WorkerOverviewDto {
-        // 이 부분은 실제 로직 구현이 필요합니다.
-        // 현재는 더미 데이터를 반환합니다.
+        val today = LocalDate.now()
+        
+        // HIRED 상태인 모든 지원자 조회
+        val hiredApplications = applicationRepository.findByStatus(ApplicationStatus.HIRED)
+        
+        val workers = mutableListOf<StaffDetailDto>()
+        var presentWorkers = 0
+        var absentWorkers = 0
+        var lateWorkers = 0
+        
+        for (application in hiredApplications) {
+            // 오늘 스케줄 조회
+            val todaySchedules = scheduleRepository.findByStaffIdAndWorkDate(application.staffId, today)
+            val todaySchedule = todaySchedules.firstOrNull()
+            
+            // 출근 기록 조회
+            val attendanceRecord = todaySchedule?.let { 
+                attendanceRecordRepository.findByScheduleId(it.id!!) 
+            }
+            
+            // 오늘 상태 결정
+            val todayStatus = when {
+                todaySchedule == null -> WorkStatus.SCHEDULED // 오늘 스케줄 없음
+                attendanceRecord?.actualStartTime != null && attendanceRecord.actualEndTime != null -> WorkStatus.COMPLETED
+                attendanceRecord?.actualStartTime != null -> {
+                    val scheduleStartTime = todaySchedule.workDate.atTime(todaySchedule.startTime)
+                    if (attendanceRecord.actualStartTime!!.isAfter(scheduleStartTime)) {
+                        lateWorkers++
+                        WorkStatus.LATE
+                    } else {
+                        presentWorkers++
+                        WorkStatus.PRESENT
+                    }
+                }
+                else -> {
+                    // 스케줄이 있지만 아직 출근하지 않은 경우
+                    val now = LocalTime.now()
+                    val scheduleEndTime = todaySchedule.endTime
+                    if (now.isAfter(scheduleEndTime)) {
+                        absentWorkers++
+                        WorkStatus.ABSENT
+                    } else {
+                        WorkStatus.SCHEDULED
+                    }
+                }
+            }
+            
+            // 채용공고 정보 조회
+            val recruit = recruitRepository.findById(application.recruitId).orElse(null)
+            
+            val worker = StaffDetailDto(
+                staffId = application.staffId,
+                staffName = application.name,
+                todayStatus = todayStatus,
+                startTime = todaySchedule?.startTime,
+                endTime = todaySchedule?.endTime,
+                workLocation = recruit?.workLocation ?: "",
+                weeklyWorkMinutes = 0, // TODO: 주간 근무시간 계산 구현
+                monthlyWorkMinutes = 0  // TODO: 월간 근무시간 계산 구현
+            )
+            
+            workers.add(worker)
+        }
+        
         return WorkerOverviewDto(
-            totalWorkers = 0,
-            presentWorkers = 0,
-            absentWorkers = 0,
-            lateWorkers = 0,
-            workers = emptyList()
+            totalWorkers = workers.size,
+            presentWorkers = presentWorkers,
+            absentWorkers = absentWorkers,
+            lateWorkers = lateWorkers,
+            workers = workers
         )
     }
 
@@ -66,8 +133,22 @@ class AttendanceService(
             throw BusinessException(ErrorCode.FORBIDDEN, "자신의 스케줄에만 체크인/아웃 할 수 있습니다.")
         }
 
+        // 출근 기록이 없으면 생성
         var attendanceRecord = attendanceRecordRepository.findByScheduleId(scheduleId)
-            ?: throw BusinessException(ErrorCode.ATTENDANCE_NOT_FOUND, "출근 기록을 찾을 수 없습니다.")
+        if (attendanceRecord == null) {
+            attendanceRecord = com.millo.ilhayoung.attendance.domain.AttendanceRecord(
+                scheduleId = scheduleId,
+                staffId = userId,
+                managerId = schedule.managerId,
+                staffName = staffRepository.findById(userId).orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }.getName(),
+                workDate = schedule.workDate,
+                status = "SCHEDULED",
+                actualStartTime = null,
+                actualEndTime = null,
+                isLate = false,
+                lateMinutes = 0
+            )
+        }
 
         val now = LocalDateTime.now()
         var workStatus = schedule.status
@@ -92,7 +173,13 @@ class AttendanceService(
                     throw BusinessException(ErrorCode.ALREADY_CLOCKED_OUT)
                 }
                 attendanceRecord = attendanceRecord.copy(actualEndTime = now)
-                workStatus = WorkStatus.COMPLETED
+                
+                // 지각 상태일 때는 체크아웃 후에도 LATE 상태 유지
+                workStatus = if (schedule.status == WorkStatus.LATE) {
+                    WorkStatus.LATE
+                } else {
+                    WorkStatus.COMPLETED
+                }
                 message = "체크아웃 되었습니다."
             }
         }

@@ -3,7 +3,7 @@ package com.millo.ilhayoung.user.controller
 import com.millo.ilhayoung.auth.jwt.UserPrincipal
 import com.millo.ilhayoung.common.dto.ApiResponse
 import com.millo.ilhayoung.user.dto.*
-import com.millo.ilhayoung.user.service.DashboardService
+import com.millo.ilhayoung.user.service.UserDashboardService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.*
 @Tag(name = "EmployerDashboard", description = "사업자 대시보드 API")
 @RestController
 @RequestMapping("/api/v1/employer/dashboard")
-class DashboardController(
-    private val dashboardService: DashboardService
+class UserDashboardController(
+    private val dashboardService: UserDashboardService
 ) {
     @Operation(summary = "대시보드 요약", security = [SecurityRequirement(name = "BearerAuth")])
     @GetMapping("/summary")

@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Version
 import org.springframework.data.mongodb.core.mapping.Document
 import java.time.LocalDateTime
+import java.time.LocalDate
 
 /**
  * 채용공고 도메인
@@ -26,6 +27,10 @@ data class Recruit(
     val companyAddress: String,           // 회사 주소
     val companyContact: String,           // 기업 연락처
     val representativeName: String,       // 대표자 이름
+    val workStartDate: LocalDate,         // 근무 시작일
+    val workEndDate: LocalDate,           // 근무 종료일
+    val workDurationMonths: Int,          // 근무 기간 (개월수)
+    val recruitmentCount: Int,            // 모집인원
     val status: RecruitStatus = RecruitStatus.ACTIVE, // 공고 상태
     val applicationCount: Long = 0L,      // 지원자 수
     val viewCount: Long = 0,              // 조회수

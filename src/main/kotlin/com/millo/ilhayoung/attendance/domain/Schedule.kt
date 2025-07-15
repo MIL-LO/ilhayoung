@@ -34,5 +34,6 @@ data class Schedule(
     val companyName: String,              // 회사명
     val hourlyWage: Long,                 // 시급
     val status: WorkStatus = WorkStatus.SCHEDULED, // 근무 상태
-    val endDateTime: LocalDateTime? = null // 근무 종료 일시 (결근 처리용 인덱스)
+    val endDateTime: LocalDateTime? = null, // 근무 종료 일시 (결근 처리용 인덱스)
+    val paymentDate: String               // 지급일 (공고에서 복사, 예: "10", "15", "25")
 ) : BaseDocument() 

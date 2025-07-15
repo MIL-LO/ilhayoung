@@ -3,6 +3,7 @@ package com.millo.ilhayoung.config
 import com.millo.ilhayoung.auth.jwt.JwtAuthenticationFilter
 import com.millo.ilhayoung.auth.jwt.JwtTokenProvider
 import com.millo.ilhayoung.auth.oauth2.CustomOAuth2UserService
+import com.millo.ilhayoung.auth.oauth2.CustomOAuth2AuthorizationRequestResolver
 import com.millo.ilhayoung.auth.oauth2.OAuth2AuthenticationFailureHandler
 import com.millo.ilhayoung.auth.oauth2.OAuth2AuthenticationSuccessHandler
 import org.springframework.context.annotation.Bean
@@ -16,6 +17,7 @@ import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 
 /**
  * Spring Security 설정을 담당하는 클래스 (모바일 최적화)
@@ -31,11 +33,27 @@ class SecurityConfig(
 ) {
 
     /**
+     * CustomOAuth2AuthorizationRequestResolver Bean 등록
+     */
+    @Bean
+    fun customOAuth2AuthorizationRequestResolver(
+        clientRegistrationRepository: ClientRegistrationRepository
+    ): CustomOAuth2AuthorizationRequestResolver {
+        return CustomOAuth2AuthorizationRequestResolver(
+            clientRegistrationRepository,
+            "/oauth2/authorization"
+        )
+    }
+
+    /**
      * Spring Security FilterChain 설정 (모바일 앱용)
      * JWT 기반 Stateless 인증과 OAuth2 Login을 함께 사용
      */
     @Bean
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        customOAuth2AuthorizationRequestResolver: CustomOAuth2AuthorizationRequestResolver
+    ): SecurityFilterChain {
         return http
             // CSRF 비활성화 (모바일 앱에서 불필요)
             .csrf { it.disable() }
@@ -43,9 +61,9 @@ class SecurityConfig(
             // CORS 설정 적용
             .cors { it.configurationSource(corsConfigurationSource()) }
             
-            // 세션 정책: JWT 기반 Stateless로 변경
+            // 세션 정책: OAuth2 인증을 위해 IF_REQUIRED로 변경
             .sessionManagement { 
-                it.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             }
             
             // HTTP 요청에 대한 권한 설정
@@ -108,6 +126,9 @@ class SecurityConfig(
             // OAuth2 Login 설정 (모바일 앱용)
             .oauth2Login { oauth2 ->
                 oauth2
+                    .authorizationEndpoint { authorization ->
+                        authorization.authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
+                    }
                     .userInfoEndpoint { userInfo ->
                         userInfo.userService(customOAuth2UserService)
                     }

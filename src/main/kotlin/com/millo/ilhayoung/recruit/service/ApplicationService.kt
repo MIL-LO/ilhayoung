@@ -1,5 +1,6 @@
 package com.millo.ilhayoung.recruit.service
 
+import com.millo.ilhayoung.attendance.service.ScheduleService
 import com.millo.ilhayoung.common.exception.BusinessException
 import com.millo.ilhayoung.common.exception.ErrorCode
 import com.millo.ilhayoung.recruit.domain.Application
@@ -22,7 +23,8 @@ import org.springframework.transaction.annotation.Transactional
 class ApplicationService(
     private val applicationRepository: ApplicationRepository,
     private val recruitRepository: RecruitRepository,
-    private val staffRepository: StaffRepository
+    private val staffRepository: StaffRepository,
+    private val scheduleService: ScheduleService
 ) {
 
     /**
@@ -59,7 +61,9 @@ class ApplicationService(
             contact = request.contact,
             address = request.address,
             experience = request.experience,
-            climateScore = request.climateScore ?: 0
+            climateScore = request.climateScore ?: 0,
+            recruitTitle = recruit.title,
+            recruitManagerId = recruit.managerId
         )
 
         val savedApplication = applicationRepository.save(application)
@@ -80,16 +84,18 @@ class ApplicationService(
         val applications = applicationRepository.findByStaffIdOrderByCreatedAtDesc(staffId, pageable)
 
         return applications.map { application ->
-            val recruit = recruitRepository.findById(application.recruitId)
-                .orElseThrow { BusinessException(ErrorCode.RECRUIT_NOT_FOUND) }
+            // 채용공고 조회 (삭제된 경우 null)
+            val recruit = recruitRepository.findById(application.recruitId).orElse(null)
+            val isRecruitDeleted = recruit?.status == RecruitStatus.DELETED
 
             ApplicationHistoryResponse(
                 id = application.id!!,
-                recruitTitle = recruit.title,
-                companyName = recruit.companyName,
-                status = application.status,
+                recruitTitle = recruit?.title ?: application.recruitTitle ?: "삭제된 공고",
+                companyName = recruit?.companyName ?: "알 수 없음",
+                status = _mapLegacyStatus(application.status),
                 appliedAt = application.createdAt!!,
-                recruitDeadline = recruit.deadline
+                recruitDeadline = recruit?.deadline ?: application.createdAt!!.plusDays(30), // 기본값 설정
+                isRecruitDeleted = isRecruitDeleted
             )
         }
     }
@@ -133,6 +139,17 @@ class ApplicationService(
         val updatedApplication = application.copy(status = request.status)
         val savedApplication = applicationRepository.save(updatedApplication)
 
+        // HIRED 상태로 변경된 경우 스케줄 자동 생성
+        if (request.status == ApplicationStatus.HIRED) {
+            try {
+                scheduleService.createSchedulesFromApplication(applicationId)
+            } catch (e: Exception) {
+                // 스케줄 생성 실패 시에도 지원서 상태 변경은 유지
+                // 로그만 남기고 예외를 던지지 않음
+                println("스케줄 생성 실패: ${e.message}")
+            }
+        }
+
         return ApplicationResponse.from(savedApplication)
     }
 
@@ -149,8 +166,8 @@ class ApplicationService(
         }
 
         // 이미 처리된 지원은 취소 불가
-        if (application.status in listOf(ApplicationStatus.HIRED, ApplicationStatus.REJECTED)) {
-            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        if (application.status in listOf(ApplicationStatus.HIRED, ApplicationStatus.REJECTED, ApplicationStatus.INTERVIEW)) {
+            throw BusinessException(ErrorCode.APPLICATION_ALREADY_PROCESSED)
         }
 
         applicationRepository.deleteById(applicationId)
@@ -202,5 +219,17 @@ class ApplicationService(
 
         val applications = applicationRepository.findByRecruitIdAndStatusOrderByCreatedAtDesc(recruitId, status, pageable)
         return applications.map { ApplicantInfoResponse.from(it) }
+    }
+
+    /**
+     * 레거시 상태를 새로운 상태로 매핑
+     * 데이터베이스에 남아있을 수 있는 REVIEWING 상태를 APPLIED로 변환
+     */
+    private fun _mapLegacyStatus(status: ApplicationStatus): ApplicationStatus {
+        // REVIEWING 상태가 제거되었으므로, 문자열로 비교하여 처리
+        return when (status.name) {
+            "REVIEWING" -> ApplicationStatus.APPLIED
+            else -> status
+        }
     }
 } 

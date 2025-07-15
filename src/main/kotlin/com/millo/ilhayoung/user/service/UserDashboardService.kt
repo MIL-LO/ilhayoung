@@ -17,7 +17,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Service
-class DashboardService(
+class UserDashboardService(
     private val scheduleRepository: ScheduleRepository,
     private val attendanceRecordRepository: AttendanceRecordRepository,
     private val staffRepository: StaffRepository,
@@ -39,10 +39,10 @@ class DashboardService(
         // 3. 활성 공고 수
         val activeJobs = recruitRepository.findByManagerIdAndStatusIn(managerId, listOf(RecruitStatus.ACTIVE), org.springframework.data.domain.Pageable.unpaged()).totalElements
 
-        // 4. 대기 중인 지원서 수 (모든 ACTIVE 공고의 REVIEWING 상태 지원서)
+        // 4. 대기 중인 지원서 수 (모든 ACTIVE 공고의 APPLIED 상태 지원서)
         val activeRecruitIds = recruitRepository.findByManagerIdAndStatusIn(managerId, listOf(RecruitStatus.ACTIVE), org.springframework.data.domain.Pageable.unpaged()).content.mapNotNull { it.id }
         val pendingApplications = if (activeRecruitIds.isNotEmpty()) {
-            applicationRepository.findByRecruitIdIn(activeRecruitIds).count { it.status == ApplicationStatus.REVIEWING }
+            applicationRepository.findByRecruitIdIn(activeRecruitIds).count { it.status == ApplicationStatus.APPLIED }
         } else 0
 
         // 5. 이번 주 매출/급여 (이번 달 지급된 급여 총합) - YearMonth 대신 전체 조회 후 필터링
@@ -139,7 +139,7 @@ class DashboardService(
                 listOf(RecruitStatus.ACTIVE), 
                 org.springframework.data.domain.Pageable.unpaged()
             ).content.mapNotNull { it.id }
-        ).filter { it.status == ApplicationStatus.REVIEWING }
+        ).filter { it.status == ApplicationStatus.APPLIED }
         
         if (pendingApplications.isNotEmpty()) {
             tasks.add(

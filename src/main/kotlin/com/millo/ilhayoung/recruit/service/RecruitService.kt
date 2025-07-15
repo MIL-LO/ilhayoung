@@ -50,7 +50,11 @@ class RecruitService(
             companyName = request.companyName,
             companyAddress = request.companyAddress,
             companyContact = request.companyContact,
-            representativeName = request.representativeName
+            representativeName = request.representativeName,
+            workStartDate = request.workStartDate,
+            workEndDate = request.workEndDate,
+            workDurationMonths = request.workDurationMonths,
+            recruitmentCount = request.recruitmentCount
         )
 
         val savedRecruit = recruitRepository.save(recruit)
@@ -102,6 +106,11 @@ class RecruitService(
     fun getRecruit(recruitId: String): RecruitResponse {
         val recruit = recruitRepository.findById(recruitId)
             .orElseThrow { BusinessException(ErrorCode.RECRUIT_NOT_FOUND) }
+
+        // 삭제된 공고인지 확인
+        if (recruit.status == RecruitStatus.DELETED) {
+            throw BusinessException(ErrorCode.RECRUIT_DELETED)
+        }
 
         // 조회수 증가
         val updatedRecruit = recruit.copy(viewCount = recruit.viewCount + 1)
@@ -172,7 +181,11 @@ class RecruitService(
             companyName = request.companyName ?: recruit.companyName,
             companyAddress = request.companyAddress ?: recruit.companyAddress,
             companyContact = request.companyContact ?: recruit.companyContact,
-            representativeName = request.representativeName ?: recruit.representativeName
+            representativeName = request.representativeName ?: recruit.representativeName,
+            workStartDate = request.workStartDate ?: recruit.workStartDate,
+            workEndDate = request.workEndDate ?: recruit.workEndDate,
+            workDurationMonths = request.workDurationMonths ?: recruit.workDurationMonths,
+            recruitmentCount = request.recruitmentCount ?: recruit.recruitmentCount
         )
 
         val savedRecruit = recruitRepository.save(updatedRecruit)
@@ -197,7 +210,7 @@ class RecruitService(
     }
 
     /**
-     * 채용공고 삭제
+     * 채용공고 삭제 (소프트 삭제)
      */
     fun deleteRecruit(recruitId: String, managerId: String) {
         val recruit = recruitRepository.findById(recruitId)
@@ -208,13 +221,14 @@ class RecruitService(
             throw BusinessException(ErrorCode.ACCESS_DENIED)
         }
 
-        // 지원자가 있는 경우 삭제 불가
-        val applicationCount = applicationRepository.countByRecruitId(recruitId)
-        if (applicationCount > 0) {
-            throw BusinessException(ErrorCode.RECRUIT_HAS_APPLICATIONS)
+        // 이미 삭제된 공고인지 확인
+        if (recruit.status == RecruitStatus.DELETED) {
+            throw BusinessException(ErrorCode.RECRUIT_ALREADY_DELETED)
         }
 
-        recruitRepository.deleteById(recruitId)
+        // 상태를 DELETED로 변경 (소프트 삭제)
+        val deletedRecruit = recruit.copy(status = RecruitStatus.DELETED)
+        recruitRepository.save(deletedRecruit)
     }
 
     /**
@@ -248,7 +262,7 @@ class RecruitService(
                 val recruitId = recruit.id ?: throw BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "채용공고 ID가 없습니다.")
                 
                 val totalApplications = applicationRepository.countByRecruitId(recruitId)
-                val reviewingCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.REVIEWING)
+                val reviewingCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.APPLIED)
                 val interviewCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.INTERVIEW)
                 val hiredCount = applicationRepository.countByRecruitIdAndStatus(recruitId, ApplicationStatus.HIRED)
 

@@ -133,7 +133,10 @@ data class ApplicationHistoryResponse(
     val appliedAt: LocalDateTime,
 
     @Schema(description = "공고 마감일")
-    val recruitDeadline: LocalDateTime
+    val recruitDeadline: LocalDateTime,
+
+    @Schema(description = "삭제된 공고인지 여부")
+    val isRecruitDeleted: Boolean = false
 )
 
 /**
@@ -195,7 +198,7 @@ data class ApplicantInfoResponse(
 """)
 data class UpdateApplicationStatusRequest(
     @field:NotNull(message = "상태는 필수입니다")
-    @Schema(description = "지원 상태", example = "INTERVIEW", allowableValues = ["APPLIED", "REVIEWING", "INTERVIEW", "HIRED", "REJECTED"])
+    @Schema(description = "지원 상태", example = "INTERVIEW", allowableValues = ["APPLIED", "INTERVIEW", "HIRED", "REJECTED"])
     val status: ApplicationStatus
 )
 

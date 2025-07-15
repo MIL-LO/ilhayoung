@@ -27,21 +27,21 @@ class UserController(
     private val permissionChecker: PermissionChecker,
     private val businessVerificationService: BusinessVerificationService
 ) {
-    
+
     /**
-     * STAFF 회원가입
+     * STAFF 회원가입 완료
      * 
      * @param userPrincipal 현재 인증된 사용자 정보
-     * @param request STAFF 회원가입 요청 정보
-     * @return 회원가입 완료 메시지
+     * @param request STAFF 회원가입 완료 요청
+     * @return 회원가입 완료 응답 (JWT 토큰 포함)
      */
     @Operation(
-        summary = "STAFF 회원가입",
-        description = "직원(STAFF) 추가 정보를 등록하여 회원가입을 완료합니다.",
+        summary = "STAFF 회원가입 완료",
+        description = "STAFF 사용자의 회원가입을 완료하고 JWT 토큰을 발급합니다.",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
     @PostMapping("/staff/signup")
-    fun signupStaff(
+    fun completeStaffSignup(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Valid @RequestBody request: StaffSignupRequest
     ): ApiResponse<SignupCompleteResponse> {
@@ -50,19 +50,19 @@ class UserController(
     }
     
     /**
-     * MANAGER 회원가입
+     * MANAGER 회원가입 완료
      * 
      * @param userPrincipal 현재 인증된 사용자 정보
-     * @param request MANAGER 회원가입 요청 정보
-     * @return 회원가입 완료 메시지
+     * @param request MANAGER 회원가입 완료 요청
+     * @return 회원가입 완료 응답 (JWT 토큰 포함)
      */
     @Operation(
-        summary = "MANAGER 회원가입",
-        description = "관리자(MANAGER) 추가 정보를 등록하여 회원가입을 완료합니다.",
+        summary = "MANAGER 회원가입 완료",
+        description = "MANAGER 사용자의 회원가입을 완료하고 JWT 토큰을 발급합니다.",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
     @PostMapping("/manager/signup")
-    fun signupManager(
+    fun completeManagerSignup(
         @AuthenticationPrincipal userPrincipal: UserPrincipal,
         @Valid @RequestBody request: ManagerSignupRequest
     ): ApiResponse<SignupCompleteResponse> {
@@ -74,7 +74,7 @@ class UserController(
      * 현재 사용자 정보 조회
      * 
      * @param userPrincipal 현재 인증된 사용자 정보
-     * @return 사용자 타입에 따른 사용자 정보
+     * @return 사용자 정보 (STAFF/MANAGER에 따라 다른 정보 반환)
      */
     @Operation(
         summary = "현재 사용자 정보 조회",
@@ -86,6 +86,30 @@ class UserController(
         @AuthenticationPrincipal userPrincipal: UserPrincipal
     ): ApiResponse<Any> {
         val userInfo = userService.getCurrentUserInfo(userPrincipal.userId)
+        return ApiResponse.success(userInfo)
+    }
+
+    /**
+     * 특정 사용자 정보 조회 (MANAGER 전용)
+     * 
+     * @param userId 조회할 사용자 ID
+     * @param userPrincipal 현재 인증된 사용자 정보
+     * @return 사용자 정보
+     */
+    @Operation(
+        summary = "특정 사용자 정보 조회",
+        description = "MANAGER가 특정 사용자의 정보를 조회합니다. 고용된 직원 정보 조회용으로 사용됩니다.",
+        security = [SecurityRequirement(name = "BearerAuth")]
+    )
+    @GetMapping("/{userId}")
+    fun getUserById(
+        @PathVariable userId: String,
+        @AuthenticationPrincipal userPrincipal: UserPrincipal
+    ): ApiResponse<Any> {
+        // 실시간 권한 체크: MANAGER만 접근 가능
+        permissionChecker.requireManagerPermission()
+        
+        val userInfo = userService.getUserById(userId)
         return ApiResponse.success(userInfo)
     }
     

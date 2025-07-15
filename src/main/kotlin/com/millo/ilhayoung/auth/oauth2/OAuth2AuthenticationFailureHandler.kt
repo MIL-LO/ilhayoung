@@ -18,7 +18,25 @@ class OAuth2AuthenticationFailureHandler : SimpleUrlAuthenticationFailureHandler
         response: HttpServletResponse,
         exception: AuthenticationException
     ) {
-        sendErrorResponse(response, exception.localizedMessage ?: "OAuth2 인증에 실패했습니다.")
+        val errorMessage = getErrorMessage(exception.localizedMessage ?: "OAuth2 인증에 실패했습니다.")
+        sendErrorResponse(response, errorMessage)
+    }
+
+    /**
+     * 에러 메시지 변환 (사용자 친화적)
+     */
+    private fun getErrorMessage(originalMessage: String): String {
+        return when {
+            originalMessage.contains("authorization_request_not_found") -> 
+                "인증 요청이 만료되었습니다. 다시 로그인해주세요."
+            originalMessage.contains("invalid_grant") -> 
+                "인증이 만료되었습니다. 다시 로그인해주세요."
+            originalMessage.contains("access_denied") -> 
+                "로그인이 취소되었습니다."
+            originalMessage.contains("server_error") -> 
+                "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+            else -> "로그인에 실패했습니다. 다시 시도해주세요."
+        }
     }
 
     /**
@@ -31,10 +49,9 @@ class OAuth2AuthenticationFailureHandler : SimpleUrlAuthenticationFailureHandler
         val jsonResponse = """
             {
                 "success": false,
-                "error": {
-                    "code": "oauth2_authentication_failed",
-                    "message": "$message"
-                }
+                "message": "$message",
+                "accessToken": null,
+                "refreshToken": null
             }
         """.trimIndent()
         

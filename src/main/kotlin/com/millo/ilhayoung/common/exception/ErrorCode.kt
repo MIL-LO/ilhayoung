@@ -33,10 +33,13 @@ enum class ErrorCode(
     
     // 채용 관련 에러
     RECRUIT_NOT_FOUND("RECRUIT_NOT_FOUND", "채용 공고를 찾을 수 없습니다.", 404),
+    RECRUIT_DELETED("RECRUIT_DELETED", "삭제된 채용 공고입니다.", 404),
+    RECRUIT_ALREADY_DELETED("RECRUIT_ALREADY_DELETED", "이미 삭제된 채용 공고입니다.", 400),
     APPLICATION_NOT_FOUND("APPLICATION_NOT_FOUND", "지원서를 찾을 수 없습니다.", 404),
     ALREADY_APPLIED("ALREADY_APPLIED", "이미 지원한 공고입니다.", 409),
     RECRUIT_CLOSED("RECRUIT_CLOSED", "마감된 채용 공고입니다.", 400),
     RECRUIT_HAS_APPLICATIONS("RECRUIT_HAS_APPLICATIONS", "지원자가 있는 공고는 삭제할 수 없습니다.", 400),
+    APPLICATION_ALREADY_PROCESSED("APPLICATION_ALREADY_PROCESSED", "이미 처리된 지원입니다.", 400),
     ACCESS_DENIED("ACCESS_DENIED", "접근 권한이 없습니다.", 403),
     TEMPLATE_NOT_FOUND("TEMPLATE_NOT_FOUND", "템플릿을 찾을 수 없습니다.", 404),
     

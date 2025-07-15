@@ -4,18 +4,22 @@ import com.millo.ilhayoung.attendance.dto.*
 import com.millo.ilhayoung.attendance.service.ScheduleService
 import com.millo.ilhayoung.auth.jwt.UserPrincipal
 import com.millo.ilhayoung.common.dto.ApiResponse
+import com.millo.ilhayoung.common.exception.BusinessException
+import com.millo.ilhayoung.common.exception.ErrorCode
+import com.millo.ilhayoung.user.repository.ManagerRepository
+import com.millo.ilhayoung.user.repository.StaffRepository
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
 @Tag(
-    name = "Schedule",
-    description = "스케줄 관리 API - 근무 일정 생성, 조회, 수정 및 대체 근무자 정보 제공"
+    name = "스케줄 관리", description = "근무 스케줄 관련 API"
 )
 @RestController
 @RequestMapping("/api/v1/schedules")
@@ -98,7 +102,12 @@ class ScheduleController(
         
         @AuthenticationPrincipal userPrincipal: UserPrincipal
     ): ResponseEntity<ApiResponse<List<MonthlyScheduleDto>>> {
-        val schedules = scheduleService.getMonthlySchedules(year, month, userPrincipal.userId)
+        val schedules = scheduleService.getMonthlySchedules(
+            year = year, 
+            month = month, 
+            userId = userPrincipal.userId,
+            userType = userPrincipal.userType?.name
+        )
         return ResponseEntity.ok(
             ApiResponse.success(schedules)
         )
@@ -145,93 +154,24 @@ class ScheduleController(
         )
     }
 
-    @Operation(
-        summary = "[MANAGER] 스케줄 상태 수정",
-        description = """
-        관리자가 스태프의 근무 상태를 수동으로 변경합니다.
-        
-        **변경 가능한 상태:**
-        - SCHEDULED: 근무 예정
-        - PRESENT: 출근 (정상 출근)
-        - ABSENT: 결근
-        - LATE: 지각
-        - COMPLETED: 근무 완료
-        
-        **사용 사례:**
-        - 직원이 사전에 결근 신고를 했을 때
-        - 체크인/체크아웃 시스템 오류로 수동 처리가 필요할 때
-        - 출석 상태를 정정해야 할 때
-        
-        **사용 ENUM:**
-        - **WorkStatus**: 근무 상태
-          - `SCHEDULED`: 예정 (근무 예정)
-          - `PRESENT`: 출근 (정상 출근)
-          - `ABSENT`: 결근 (결근)
-          - `LATE`: 지각 (지각)
-          - `COMPLETED`: 완료 (근무 완료)
-        
-        **권한:** MANAGER만 실행 가능
-        """
-    )
+    /**
+     * 스케줄 상태 수정
+     */
     @PutMapping("/{scheduleId}/status")
-    @PreAuthorize("hasRole('MANAGER')")
     fun updateScheduleStatus(
-        @Parameter(
-            description = "상태를 변경할 스케줄의 고유 ID",
-            required = true,
-            example = "65a1b2c3d4e5f6789abcdef0"
-        )
         @PathVariable scheduleId: String,
-        
-        @Parameter(
-            description = "변경할 근무 상태 정보",
-            required = true
-        )
         @RequestBody request: ScheduleStatusUpdateDto,
-        @AuthenticationPrincipal userPrincipal: UserPrincipal
-    ): ResponseEntity<ApiResponse<String>> {
-        scheduleService.updateScheduleStatus(scheduleId, request.status)
+        authentication: Authentication
+    ): ResponseEntity<ApiResponse<ScheduleDetailDto>> {
+        val userId = authentication.name
+        val updatedSchedule = scheduleService.updateScheduleStatus(scheduleId, request.status)
+        val scheduleDetail = scheduleService.getScheduleDetail(scheduleId, userId)
+        
         return ResponseEntity.ok(
-            ApiResponse.success("스케줄 상태가 성공적으로 수정되었습니다.")
-        )
-    }
-
-    @Operation(
-        summary = "[MANAGER] 대체 근무자 채용공고 정보 조회",
-        description = """
-        결근 처리된 스케줄에 대해 대체 근무자를 구하기 위한 채용공고 생성 정보를 제공합니다.
-
-        **제공 정보:**
-        - 원본 채용공고 정보를 기반으로 한 대체 채용공고 데이터
-        - 자동 생성된 제목 (기존 제목 + "(대체근무)")
-        - 결근한 직원 정보
-        - 동일한 근무 조건 (시간, 장소, 시급 등)
-
-        **사용 목적:**
-        - 급작스러운 결근 시 대체 인력 모집
-        - 채용공고 생성 API 호출 시 필요한 정보 미리 제공
-
-        **사용 ENUM:**
-        - **WorkStatus**: 근무 상태 (ABSENT 상태의 스케줄만 대상)
-          - `ABSENT`: 결근 (결근) - 대체 근무자 모집 대상
-
-        **권한:** MANAGER만 조회 가능
-        """
-    )
-    @GetMapping("/{scheduleId}/replacement-info")
-    @PreAuthorize("hasRole('MANAGER')")
-    fun getReplacementInfo(
-        @Parameter(
-            description = "대체 근무자 정보를 조회할 스케줄의 고유 ID (ABSENT 상태여야 함)",
-            required = true,
-            example = "65a1b2c3d4e5f6789abcdef0"
-        )
-        @PathVariable scheduleId: String,
-        @AuthenticationPrincipal userPrincipal: UserPrincipal
-    ): ResponseEntity<ApiResponse<ReplacementInfoDto>> {
-        val replacementInfo = scheduleService.getReplacementInfo(scheduleId)
-        return ResponseEntity.ok(
-            ApiResponse.success(replacementInfo)
+            ApiResponse.success(
+                message = "스케줄 상태가 변경되었습니다.",
+                data = scheduleDetail
+            )
         )
     }
 

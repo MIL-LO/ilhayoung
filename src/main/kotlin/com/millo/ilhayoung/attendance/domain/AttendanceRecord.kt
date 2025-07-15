@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.index.CompoundIndex
 import org.springframework.data.mongodb.core.index.CompoundIndexes
 import org.springframework.data.mongodb.core.mapping.Document
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
@@ -21,6 +22,10 @@ import java.time.LocalDateTime
 data class AttendanceRecord(
     val scheduleId: String,               // 스케줄 ID
     val staffId: String,                  // 스태프 ID
+    val managerId: String,                // 매니저 ID
+    val staffName: String,                // 스태프 이름
+    val workDate: LocalDate,              // 근무 날짜
+    val status: String,                   // 출근 상태 (CLOCKED_IN, CLOCKED_OUT 등)
     val actualStartTime: LocalDateTime?,  // 실제 출근 시간
     val actualEndTime: LocalDateTime?,    // 실제 퇴근 시간
     val isLate: Boolean = false,          // 지각 여부

@@ -35,10 +35,40 @@ data class MonthlyScheduleDto(
     val endTime: LocalTime,
     
     @Schema(
+        description = "스태프 이름",
+        example = "김직원"
+    )
+    val staffName: String,
+    
+    @Schema(
         description = "회사명 (달력에서 빨간색으로 표시됨)",
         example = "스타벅스 강남점"
     )
     val companyName: String,
+    
+    @Schema(
+        description = "직책/포지션",
+        example = "서빙"
+    )
+    val position: String,
+    
+    @Schema(
+        description = "직무 유형",
+        example = "서비스업"
+    )
+    val jobType: String,
+    
+    @Schema(
+        description = "시급 (원 단위)",
+        example = "12000"
+    )
+    val hourlyWage: Long,
+    
+    @Schema(
+        description = "지급일 (매월 몇 일)",
+        example = "10"
+    )
+    val paymentDate: String,
     
     @Schema(
         description = "근무 상태",

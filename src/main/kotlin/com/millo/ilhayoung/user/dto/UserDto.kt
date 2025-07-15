@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
+import java.time.LocalDateTime
 
 /**
  * STAFF 회원가입 요청 DTO
@@ -198,7 +199,28 @@ data class StaffUserResponse(
      */
     @Schema(description = "경력/경험", example = "한식 주점 홀 아르바이트 3개월")
     @JsonProperty("experience")
-    val experience: String
+    val experience: String,
+    
+    /**
+     * 사용자 상태
+     */
+    @Schema(description = "사용자 상태", example = "ACTIVE")
+    @JsonProperty("status")
+    val status: String,
+    
+    /**
+     * 생성일
+     */
+    @Schema(description = "생성일", example = "2024-01-01T00:00:00")
+    @JsonProperty("createdAt")
+    val createdAt: LocalDateTime,
+    
+    /**
+     * 수정일
+     */
+    @Schema(description = "수정일", example = "2024-01-01T00:00:00")
+    @JsonProperty("updatedAt")
+    val updatedAt: LocalDateTime
 )
 
 /**
@@ -264,11 +286,11 @@ data class ManagerUserResponse(
     val phone: String,
     
     /**
-     * 업장이름
+     * 사업자등록번호
      */
-    @Schema(description = "업장이름", example = "제주 힐링 카페")
-    @JsonProperty("businessName")
-    val businessName: String,
+    @Schema(description = "사업자등록번호", example = "1234567890")
+    @JsonProperty("businessNumber")
+    val businessNumber: String,
     
     /**
      * 사업지 주소
@@ -278,18 +300,46 @@ data class ManagerUserResponse(
     val businessAddress: String,
     
     /**
-     * 사업자등록번호
-     */
-    @Schema(description = "사업자등록번호", example = "1234567890")
-    @JsonProperty("businessNumber")
-    val businessNumber: String,
-    
-    /**
      * 업종
      */
     @Schema(description = "업종", example = "요식업")
     @JsonProperty("businessType")
-    val businessType: String
+    val businessType: String,
+    
+    /**
+     * 회사명
+     */
+    @Schema(description = "회사명", example = "제주 힐링 카페")
+    @JsonProperty("companyName")
+    val companyName: String,
+    
+    /**
+     * 대표자명
+     */
+    @Schema(description = "대표자명", example = "김대표")
+    @JsonProperty("representativeName")
+    val representativeName: String,
+    
+    /**
+     * 사용자 상태
+     */
+    @Schema(description = "사용자 상태", example = "ACTIVE")
+    @JsonProperty("status")
+    val status: String,
+    
+    /**
+     * 생성일
+     */
+    @Schema(description = "생성일", example = "2024-01-01T00:00:00")
+    @JsonProperty("createdAt")
+    val createdAt: String,
+    
+    /**
+     * 수정일
+     */
+    @Schema(description = "수정일", example = "2024-01-01T00:00:00")
+    @JsonProperty("updatedAt")
+    val updatedAt: String
 )
 
 /**

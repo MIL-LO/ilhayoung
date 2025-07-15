@@ -43,6 +43,13 @@ class ScheduleService(
         val recruit = recruitRepository.findById(application.recruitId)
             .orElseThrow { BusinessException(ErrorCode.RECRUIT_NOT_FOUND, "채용공고를 찾을 수 없습니다.") }
 
+        // 기존 스케줄이 있는지 확인하고 삭제
+        val existingSchedules = scheduleRepository.findByApplicationId(applicationId)
+        if (existingSchedules.isNotEmpty()) {
+            println("기존 스케줄 ${existingSchedules.size}개를 삭제하고 새로 생성합니다.")
+            scheduleRepository.deleteAll(existingSchedules)
+        }
+
         return generateSchedules(application, recruit)
     }
 
@@ -53,21 +60,45 @@ class ScheduleService(
     fun getMonthlySchedules(
         year: Int,
         month: Int,
-        userId: String
+        userId: String,
+        userType: String? = null
     ): List<MonthlyScheduleDto> {
         val startDate = LocalDate.of(year, month, 1)
         val endDate = startDate.withDayOfMonth(startDate.lengthOfMonth())
 
-        // 현재는 모든 스케줄을 조회하되, 향후 권한 체크를 추가할 수 있음
-        val schedules = scheduleRepository.findByStaffIdAndWorkDateBetween(userId, startDate, endDate)
+        // 사용자 타입에 따라 다른 조회 방식 사용
+        val schedules = when (userType?.uppercase()) {
+            "STAFF" -> {
+                // STAFF는 본인의 스케줄만 조회
+                scheduleRepository.findByStaffIdAndWorkDateBetween(userId, startDate, endDate)
+            }
+            "MANAGER" -> {
+                // MANAGER는 관리하는 모든 스케줄을 조회
+                scheduleRepository.findByManagerIdAndWorkDateBetween(userId, startDate, endDate)
+            }
+            else -> {
+                // 기본값: STAFF로 가정하고 본인 스케줄만 조회
+                scheduleRepository.findByStaffIdAndWorkDateBetween(userId, startDate, endDate)
+            }
+        }
+
+        // 스태프 정보를 한 번에 조회하여 성능 최적화
+        val staffIds = schedules.map { it.staffId }.distinct()
+        val staffMap = staffRepository.findAllById(staffIds).associateBy { it.id!! }
 
         return schedules.map { schedule ->
+            val staff = staffMap[schedule.staffId]
             MonthlyScheduleDto(
                 id = schedule.id!!,
                 workDate = schedule.workDate,
                 startTime = schedule.startTime,
                 endTime = schedule.endTime,
+                staffName = staff?.getName() ?: "알 수 없음",
                 companyName = schedule.companyName,
+                position = schedule.position,
+                jobType = schedule.jobType,
+                hourlyWage = schedule.hourlyWage,
+                paymentDate = schedule.paymentDate,
                 status = schedule.status
             )
         }
@@ -153,20 +184,33 @@ class ScheduleService(
             throw BusinessException(ErrorCode.RECRUIT_NOT_FOUND, "오늘 근무 스케줄이 없습니다.")
         }
         
-        val schedule = schedules.first()
+        // PRESENT 상태의 스케줄을 우선으로 선택, 없으면 SCHEDULED 상태 선택
+        val schedule = schedules.find { it.status == WorkStatus.PRESENT }
+            ?: schedules.find { it.status == WorkStatus.SCHEDULED }
+            ?: schedules.first()
+            
         val now = LocalTime.now()
         
         // 출근 기록 확인
         val attendanceRecord = attendanceRecordRepository.findByScheduleId(schedule.id!!)
         
-        val canCheckIn = attendanceRecord?.actualStartTime == null && schedule.status == WorkStatus.SCHEDULED
-        val canCheckOut = attendanceRecord?.actualStartTime != null && attendanceRecord.actualEndTime == null
+        // 출근/퇴근 가능 시간 계산 (30분 여유)
+        val checkInStartTime = schedule.startTime.minusMinutes(30)
+        val checkOutEndTime = schedule.endTime.plusMinutes(30)
+        
+        val canCheckIn = attendanceRecord?.actualStartTime == null && 
+                        schedule.status == WorkStatus.SCHEDULED &&
+                        now.isAfter(checkInStartTime) && now.isBefore(checkOutEndTime)
+        
+        val canCheckOut = (schedule.status == WorkStatus.PRESENT || schedule.status == WorkStatus.LATE) && 
+                         (attendanceRecord?.actualEndTime == null) &&
+                         now.isAfter(schedule.startTime) && now.isBefore(checkOutEndTime)
         
         val statusMessage = when (schedule.status) {
             WorkStatus.SCHEDULED -> {
                 when {
-                    now.isBefore(schedule.startTime) -> "근무 시작 전입니다."
-                    now.isAfter(schedule.endTime) -> "근무 시간이 지났습니다."
+                    now.isBefore(checkInStartTime) -> "출근 가능 시간: ${checkInStartTime.format(DateTimeFormatter.ofPattern("HH:mm"))}부터"
+                    now.isAfter(checkOutEndTime) -> "근무 시간이 지났습니다."
                     else -> "근무 시간입니다. 출근 체크를 해주세요."
                 }
             }
@@ -230,7 +274,8 @@ class ScheduleService(
                         companyName = recruit.companyName,
                         hourlyWage = recruit.salary,
                         status = WorkStatus.SCHEDULED,
-                        endDateTime = currentDate.atTime(endTime)
+                        endDateTime = currentDate.atTime(endTime),
+                        paymentDate = recruit.paymentDate
                     )
                 )
             }

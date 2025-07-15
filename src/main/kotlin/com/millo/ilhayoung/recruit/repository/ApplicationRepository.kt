@@ -59,4 +59,24 @@ interface ApplicationRepository : MongoRepository<Application, String> {
      * Staff의 특정 상태 지원 내역
      */
     fun findByStaffIdAndStatusOrderByCreatedAtDesc(staffId: String, status: ApplicationStatus, pageable: Pageable): Page<Application>
+
+    /**
+     * 상태별 지원서 수 조회
+     */
+    fun countByStatus(status: ApplicationStatus): Long
+    
+    /**
+     * Manager별 특정 상태의 지원서 수 조회
+     */
+    fun countByRecruitManagerIdAndStatus(managerId: String, status: ApplicationStatus): Long
+    
+    /**
+     * 매니저별 최근 지원 기록 조회 (상위 3개)
+     */
+    fun findTop3ByRecruitManagerIdOrderByCreatedAtDesc(managerId: String): List<Application>
+    
+    /**
+     * 특정 상태의 모든 지원서 조회
+     */
+    fun findByStatus(status: ApplicationStatus): List<Application>
 } 
