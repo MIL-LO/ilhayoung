@@ -4,8 +4,8 @@ server:
   servlet:
     session:
       cookie:
-        secure: false  # 로컬 개발 환경에서는 false
-        same-site: Lax  # 로컬 개발 환경에서는 Lax
+        secure: true  # 로컬 개발 환경에서는 false
+        same-site: strict  # 로컬 개발 환경에서는 Lax
       timeout: 30m  # 세션 타임아웃 30분으로 설정
 
 spring:
