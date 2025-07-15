@@ -247,17 +247,25 @@ class AuthService(
         val user = oauthRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
         
-        // 현재 상태 조회
-        val (userType, status) = getCurrentUserStatus(userId)
+        // 토큰에서 userType과 status 추출 (우선순위)
+        val tokenUserType = accessToken?.let { jwtTokenProvider.getUserType(it) }
+        val tokenStatus = accessToken?.let { jwtTokenProvider.getStatus(it) }
+        
+        // DB에서 현재 상태 조회 (fallback)
+        val (dbUserType, dbStatus) = getCurrentUserStatus(userId)
+        
+        // 토큰의 정보를 우선 사용, 없으면 DB 정보 사용
+        val finalUserType = tokenUserType ?: dbUserType
+        val finalStatus = tokenStatus ?: dbStatus
         
         return TokenValidationResponse(
             valid = true,
             userId = user.id!!,
             email = user.email,
-            userType = userType,
-            status = status,
+            userType = finalUserType,
+            status = finalStatus,
             oauthName = user.oauthName,
-            authorities = listOf("ROLE_${userType}")
+            authorities = listOf("ROLE_${finalUserType}")
         )
     }
 
